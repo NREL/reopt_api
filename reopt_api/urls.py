@@ -63,7 +63,7 @@ urlpatterns = [
     path('v1/', include('resilience_stats.urls')),
     path('v1/', include('proforma.urls')),
     path('v1/', include('load_builder.urls')),
-    url(r'^v1/user/?', include('summary.urls'), name='summary'),
+    path('v1/', include('summary.urls')),
     url(r'', include(v1_api.urls), name='job'),
     url(r'', include(v1_api.urls), name='outagesimjob'),
     
@@ -71,7 +71,7 @@ urlpatterns = [
     path('stable/', include('resilience_stats.urls')),
     path('stable/', include('proforma.urls')),
     path('stable/', include('load_builder.urls')),
-    url(r'^stable/user/?', include('summary.urls'), name='summary'),
+    path('stable/', include('summary.urls')),
     url(r'', include(stable_api.urls), name='job'),
     url(r'', include(stable_api.urls), name='outagesimjob'),
     

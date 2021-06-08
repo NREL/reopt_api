@@ -2,6 +2,8 @@
 
 set -Eeuxo pipefail
 
+python checkdb.py
+
 python manage.py showmigrations --plan
 
 python manage.py migrate

@@ -27,12 +27,13 @@
 # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 # OF THE POSSIBILITY OF SUCH DAMAGE.
 # *********************************************************************************
-from django.conf.urls import url
+from django.urls import re_path
 
 from . import views
 
 urlpatterns = [
-    url(r'^(?P<user_uuid>[0-9a-f-]+)/summary/?$', views.summary, name='summary'),
-    url(r'^(?P<user_uuid>[0-9a-f-]+)/unlink/(?P<run_uuid>[0-9a-f-]+)/?$', views.unlink, name='unlink'),
-    url(r'rename/?$', views.add_user_uuid, name='add_user_uuid'),
-    ]
+    re_path(r'^user/(?P<user_uuid>[0-9a-f-]+)/summary_by_chunk/(?P<chunk>[0-9]+)/?$', views.summary_by_chunk),
+    re_path(r'^user/(?P<user_uuid>[0-9a-f-]+)/summary/?$', views.summary),
+    re_path(r'^user/(?P<user_uuid>[0-9a-f-]+)/unlink/(?P<run_uuid>[0-9a-f-]+)/?$', views.unlink),
+    re_path(r'^user/(?P<user_uuid>[0-9a-f-]+)/addtorun/(?P<run_uuid>[0-9a-f-]+)/?$', views.add_user_uuid),
+]

@@ -162,3 +162,20 @@ class InputValidatorTests(TestCase):
                     test_str in validator.warnings['Following inputs were resampled:']['ElectricTariff']
                     for test_str in ["{} {}".format(up_or_down, rate) for rate in rates]
                 ))
+
+    def test_coincident_peak_inputs(self):
+        post = copy.deepcopy(self.post)
+        post["Scenario"]["Site"]["ElectricTariff"]["coincident_peak_load_active_timesteps"] = 5000
+        post["Scenario"]["Site"]["ElectricTariff"]["coincident_peak_load_charge_us_dollars_per_kw"] = [10,5,8]
+        validator = self.get_validator(post)
+        self.assertEquals(validator.isValid, False)
+        self.assertEqual(validator.input_dict["Scenario"]["Site"]["ElectricTariff"]["coincident_peak_load_active_timesteps"], [[5000]])
+        self.assertEqual(validator.input_dict["Scenario"]["Site"]["ElectricTariff"]["coincident_peak_load_charge_us_dollars_per_kw"], [10,5,8])
+        assert(any("The number of rates in coincident_peak_load_charge_us_dollars_per_kw must match the number of timestep sets in coincident_peak_load_active_timesteps" in e for e in validator.errors['input_errors']))
+
+        post["Scenario"]["Site"]["ElectricTariff"]["coincident_peak_load_active_timesteps"] = [1,100,6000,7000]
+        post["Scenario"]["Site"]["ElectricTariff"]["coincident_peak_load_charge_us_dollars_per_kw"] = 10.5
+        validator = self.get_validator(post)
+        self.assertEquals(validator.isValid, True)
+        self.assertEqual(validator.input_dict["Scenario"]["Site"]["ElectricTariff"]["coincident_peak_load_active_timesteps"], [[1,100,6000,7000]])
+        self.assertEqual(validator.input_dict["Scenario"]["Site"]["ElectricTariff"]["coincident_peak_load_charge_us_dollars_per_kw"], [10.5])

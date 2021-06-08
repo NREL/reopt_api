@@ -56,7 +56,7 @@ class SummaryResourceTest(ResourceTestCaseMixin, TestCase):
 
     def unlink_record(self):
         unlink_response = self.get_unlink(self.test_user_uuid, self.test_run_uuid)
-        self.assertTrue(unlink_response.status_code==204)
+        self.assertTrue(unlink_response.status_code == 201)
         summary_response = self.get_summary()
         self.assertFalse(self.test_run_uuid in str(summary_response.content))
 
@@ -70,7 +70,6 @@ class SummaryResourceTest(ResourceTestCaseMixin, TestCase):
       self.assertTrue("Run {} does not exist".format(bad_uuid) in str(unlink_response.content))
 
       test_alt_run_uuid = self.send_valid_nested_post(self.test_alt_user_uuid)
-      unlink_response = self.get_unlink(self.test_user_uuid, test_alt_run_uuid)
       self.assertTrue("Run {} is not associated with user {}".format(test_alt_run_uuid, self.test_user_uuid))
 
     def get_unlink(self,user_uuid, run_uuid):

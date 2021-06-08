@@ -131,18 +131,22 @@ class PVWatts:
         self.response = None
         self.response = self.data  # store response so don't hit API multiple times
         if self.tilt is None:
-            if self.latitude < 0: # if the site is in the southern hemisphere, and no tilt has been specified, then set the tilt to the positive latitude value and change the azimuth to zero
+            # if the site is in the southern hemisphere, and no tilt has been specified,
+            # then set the tilt to the positive latitude value and change the azimuth to zero
+            if self.latitude < 0:
                 self.tilt = self.latitude * -1
                 self.azimuth = 0
             else:
-                self.tilt = self.latitude # if the site is in the norther hemisphere, and no tilt has been specified, then set the tilt to the latitude value and leave the azimuth at 180
+                # if the site is in the norther hemisphere, and no tilt has been specified,
+                # then set the tilt to the latitude value
+                self.tilt = self.latitude
 
     @property
     def url(self):
         url = self.url_base + "?api_key=" + self.key + "&azimuth=" + str(self.azimuth) + \
               "&system_capacity=" + str(self.system_capacity) + "&losses=" + str(self.losses*100) + \
               "&array_type=" + str(self.array_type) + "&module_type=" + str(self.module_type) + \
-              "&timeframe=" + self.timeframe +"&gcr=" + str(self.gcr) +  "&dc_ac_ratio=" + str(self.dc_ac_ratio) + \
+              "&timeframe=" + self.timeframe + "&gcr=" + str(self.gcr) +  "&dc_ac_ratio=" + str(self.dc_ac_ratio) + \
               "&inv_eff=" + str(self.inv_eff*100) + "&radius=" + str(int(self.radius)) + "&dataset=" + self.dataset + \
               "&lat=" + str(self.latitude) + "&lon=" + str(self.longitude) + "&tilt=" + str(self.tilt)
         return url
@@ -150,19 +154,11 @@ class PVWatts:
     @property
     def data(self):
         if self.response is None:
+            # Check if point is beyond the bounds of the NRSDB dataset, if so use the international dataset and double the radius
+            if self.latitude < -59.5 or self.latitude > 60.01 or self.longitude > -22.37 or self.longitude < -179.58 :
+                self.dataset = 'intl'
+                self.radius = self.radius *2
             resp = requests.get(self.url, verify=self.verify)
-
-            if not resp.ok:
-                data = check_pvwatts_response_data(resp)
-                # if not ok b/c outside of the US, try again with larger search radius in "intl" dataset
-                if ("This location appears to be outside the US" in s for s in data.get("warnings", [])):
-                    self.dataset = "intl"
-                    self.radius = self.radius * 2  # bump up search radius, since there aren't many sites
-                    resp = requests.get(self.url, verify=self.verify)
-                    if not resp.ok:  # did not get data for international location either (or other problem)
-                        raise_pvwatts_exception("PVWatts status code {}. {}".format(resp.status_code, resp.content))
-                else:
-                    raise_pvwatts_exception("PVWatts status code {}. {}".format(resp.status_code, resp.content))
             log.info("PVWatts API query successful.")
             data = check_pvwatts_response_data(resp)
             self.response = data
@@ -200,15 +196,13 @@ class PVWatts:
 
         else:
             prod_factor_original = list()
-            prod_factor = list()
             import os
             with open(os.path.join('reo', 'tests', 'offline_pv_prod_factor.txt'), 'r') as f:
                 for line in f:
                     prod_factor_original.append(float(line.strip('\n')))
 
-            # the stored values in offline_pv_prod_factor.txt are 8760 rows, thus modifying prod_factor list
-            # to have 8760*4 values
-
+            # offline_pv_prod_factor.txt has 8760 rows, thus modifying prod_factor list
+            # to have 8760 * time_steps_per_hour values
             prod_factor = [val for val in prod_factor_original for _ in range(self.time_steps_per_hour)]
 
         return prod_factor

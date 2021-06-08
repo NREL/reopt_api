@@ -5,16 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Guidelines
+- When making a Pull Request into `develop` start a new double-hash header for "Develop - YYYY-MM-DD"
+- When making a Pull Request into `master` change "Develop" to the next version number
 
-Use **bold** markup for field and model names (i.e. **outage_start_time_step**)
-
-Use `code` markup for  REopt Lite-specific file names, classes and endpoints (i.e `reo/validators.py`)
-
-Use _italic_ for code terms (i.e. _list_)
-
-Prepend change with tag(s) directing where it is in the repository: 
-    
-    
+### Formatting
+- Use **bold** markup for field and model names (i.e. **outage_start_time_step**)
+- Use `code` markup for  REopt Lite-specific file names, classes and endpoints (i.e `reo/validators.py`)
+- Use _italic_ for code terms (i.e. _list_)
+- Prepend change with tag(s) directing where it is in the repository:  
 `reo`,`proforma`,`resilience_stats`,`*.jl`,`REopt_Lite_API`
 
 Classify the change according to the following categories:
@@ -27,6 +25,11 @@ Classify the change according to the following categories:
     ##### Deprecated
     ##### Removed
     ### Patches
+
+## Develop - 2021-06-03
+### Minor Updates
+##### Added
+- `summary`: Added `/summary_by_chunk` endpoint to enable a fraction of a user's total runs and summary metrics to be returned; this prevents excessive wait times when the UI was trying to load all runs
 
 ## v1.5.0 - 2021-03-12
 ### Minor Updates

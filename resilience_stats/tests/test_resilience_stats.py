@@ -404,11 +404,10 @@ class TestResilStats(ResourceTestCaseMixin, TestCase):
 
         # NOTE: probabilities are sensitive to the SOC series,
         #   which can change while keeping the same optimal LCC
-        expected_probs = [0.3999, 0.2396, 0.1963, 0.1575, 0.1213, 0.0877, 0.0566, 0.0317, 0.0137, 0.0066, 0.0033, 0.001]
-        print(resp_dict["probs_of_surviving"])
+        expected_probs = [0.3902, 0.2338, 0.1919, 0.1532, 0.1178, 0.0844, 0.0538, 0.0305, 0.0131, 0.0066, 0.0033, 0.001]
         for idx, p in enumerate(resp_dict["probs_of_surviving"]):
             self.assertAlmostEqual(p, expected_probs[idx], places=2)
-        self.assertEqual(resp_dict["resilience_hours_avg"], 1.32)
+        self.assertEqual(resp_dict["resilience_hours_avg"], 1.28)
         self.assertEqual(resp_dict["outage_durations"], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
         self.assertEqual(resp_dict["resilience_hours_min"], 0)
         self.assertEqual(resp_dict["resilience_hours_max"], 12)

@@ -199,7 +199,7 @@ class UrdbParse:
         self.last_hour_in_month = []
         for month in range(0, 12):
             days_elapsed = sum(self.days_in_month[0:month + 1])
-            self.last_hour_in_month.append((days_elapsed * 24) - 1)
+            self.last_hour_in_month.append((days_elapsed * 24))  # last_hour_in_month is one indexed (for Julia)
 
     def parse_rate(self, utility, rate):
         log.info("Processing: " + utility + ", " + rate)
@@ -595,7 +595,7 @@ class UrdbParse:
                         demand_rates.append(tou_rate + tou_adj)
 
                         for step in time_steps:
-                            self.demand_rates_summary[step] += tou_rate + tou_adj
+                            self.demand_rates_summary[step-1] += tou_rate + tou_adj
 
         self.reopt_args.demand_ratchets_tou = demand_periods
         self.reopt_args.demand_rates_tou = demand_rates
@@ -625,7 +625,6 @@ class UrdbParse:
                 self.reopt_args.min_monthly_charge = current_rate.minmonthlycharge
 
     def get_hours_in_month(self, month):
-
         hours = []
         hours.append(0)
         for m in range(12):
@@ -639,19 +638,22 @@ class UrdbParse:
         return range(hours[month], hours[month + 1])
 
     def get_tou_steps(self, current_rate, month, period):
-
+        """
+        Get the TOU steps indexed on 1-8760 for hourly simulations
+        :param current_rate: RateData class instance
+        :param month: int
+        :param period: int
+        :return: list of ints
+        """
         step_array = []
         start_step = 1
-        start_hour = 1
 
         demand_ts_per_hour = int(len(current_rate.demandweekdayschedule[0] or 0)/24)
         simulation_time_steps_per_rate_time_step = int(self.time_steps_per_hour / demand_ts_per_hour)
 
         if month > 0:
-            start_hour = self.last_hour_in_month[month - 1] + 1
             start_step = (self.last_hour_in_month[month - 1] + 1) * self.time_steps_per_hour
 
-        hour_of_year = start_hour
         step_of_year = start_step
 
         for day in range(0, self.days_in_month[month]):
@@ -670,5 +672,4 @@ class UrdbParse:
                             step_array.append(step_of_year)
                         step_of_year += 1
                     demand_ts += 1
-                hour_of_year += 1
         return step_array

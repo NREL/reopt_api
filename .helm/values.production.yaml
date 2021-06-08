@@ -1,5 +1,5 @@
 appEnv: production
 djangoSettingsModule: reopt_api.production_settings
 djangoReplicas: 3
-celeryReplicas: 20
-juliaReplicas: 20
+celeryReplicas: 18
+juliaReplicas: 18
