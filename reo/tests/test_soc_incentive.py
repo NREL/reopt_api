@@ -45,7 +45,7 @@ class SOCIncentiveTests(ResourceTestCaseMixin, TestCase):
 
     def get_response(self, data):
         return self.api_client.post(self.reopt_base, format='json', data=data)
-    
+
     def test_soc_incentive(self):
         """
         Test scenario with
@@ -61,9 +61,8 @@ class SOCIncentiveTests(ResourceTestCaseMixin, TestCase):
         r = json.loads(resp.content)
         run_uuid = r.get('run_uuid')
         d = ModelManager.make_response(run_uuid=run_uuid)
-
-        high_soc_incentive = (sum(d['outputs']['Scenario']['Site']['Storage']['year_one_soc_series_pct']) /
-                            len(d['outputs']['Scenario']['Site']['Storage']['year_one_soc_series_pct']))
+        high_avg_soc = (sum(d['outputs']['Scenario']['Site']['Storage']['year_one_soc_series_pct']) /
+                        len(d['outputs']['Scenario']['Site']['Storage']['year_one_soc_series_pct']))
 
         nested_data['Scenario']['add_soc_incentive'] = False
         resp = self.get_response(data=nested_data)
@@ -71,8 +70,7 @@ class SOCIncentiveTests(ResourceTestCaseMixin, TestCase):
         r = json.loads(resp.content)
         run_uuid = r.get('run_uuid')
         d = ModelManager.make_response(run_uuid=run_uuid)
+        low_avg_soc = (sum(d['outputs']['Scenario']['Site']['Storage']['year_one_soc_series_pct']) /
+                       len(d['outputs']['Scenario']['Site']['Storage']['year_one_soc_series_pct']))
 
-        no_soc_incentive = (sum(d['outputs']['Scenario']['Site']['Storage']['year_one_soc_series_pct']) /
-                            len(d['outputs']['Scenario']['Site']['Storage']['year_one_soc_series_pct']))
-
-        self.assertGreater(high_soc_incentive, no_soc_incentive)
+        self.assertGreater(high_avg_soc, low_avg_soc, "Average SOC should be higher when including SOC incentive.")

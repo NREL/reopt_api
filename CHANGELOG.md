@@ -26,10 +26,16 @@ Classify the change according to the following categories:
     ##### Removed
     ### Patches
 
-## Develop - 2021-06-03
+## v1.6.0 - 2021-06-09
 ### Minor Updates
 ##### Added
 - `summary`: Added `/summary_by_chunk` endpoint to enable a fraction of a user's total runs and summary metrics to be returned; this prevents excessive wait times when the UI was trying to load all runs
+- New `<host>/dev/futurecosts` endpoint 
+##### Patches
+- was returning -1 for `bau_sustained_time_steps` when no critical load was met in BAU case (now returns zero)
+- fixed issue with modeling last time step of the year in outages 
+- `NewMaxSize` was sometimes less than the `TechClassMinSize`, creating infeasible problems
+- fix `user` URLs
 
 ## v1.5.0 - 2021-03-12
 ### Minor Updates

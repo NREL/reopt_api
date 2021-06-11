@@ -24,36 +24,37 @@ else:
     dbuser = dev_user
     dbpass = dev_user_password
 
-conn = psycopg2.connect(
-    dbname="postgres",
-    user=dbuser,
-    password=dbpass,
-    host=dbhost,
-)
-
-conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-
-cur = conn.cursor()
-dbnames = []
-cur.execute("SELECT datname FROM pg_database;")
-for dbn in cur.fetchall():
-    dbnames.append(dbn[0])
-
-if dbname not in dbnames:
-    cur.execute("CREATE DATABASE {};".format(dbname))
-    conn.commit()
-    cur.close()
-    conn.close()
+if env != 'production':
     conn = psycopg2.connect(
-        dbname=dbname,
+        dbname="postgres",
         user=dbuser,
         password=dbpass,
         host=dbhost,
     )
-    cur = conn.cursor()
-    cur.execute("CREATE SCHEMA reopt_api;")
-    cur.execute("ALTER SCHEMA reopt_api OWNER TO {};".format(dbuser))
-    conn.commit()
 
-cur.close()
-conn.close()
+    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+    cur = conn.cursor()
+    dbnames = []
+    cur.execute("SELECT datname FROM pg_database;")
+    for dbn in cur.fetchall():
+        dbnames.append(dbn[0])
+
+    if dbname not in dbnames:
+        cur.execute("CREATE DATABASE {};".format(dbname))
+        conn.commit()
+        cur.close()
+        conn.close()
+        conn = psycopg2.connect(
+            dbname=dbname,
+            user=dbuser,
+            password=dbpass,
+            host=dbhost,
+        )
+        cur = conn.cursor()
+        cur.execute("CREATE SCHEMA reopt_api;")
+        cur.execute("ALTER SCHEMA reopt_api OWNER TO {};".format(dbuser))
+        conn.commit()
+
+    cur.close()
+    conn.close()

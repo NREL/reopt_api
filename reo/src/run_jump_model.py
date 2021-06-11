@@ -85,7 +85,7 @@ def run_jump_model(self, dfm, data, bau=False):
     reopt_inputs["tolerance"] = data['inputs']['Scenario']['optimality_tolerance_bau'] if bau \
         else data['inputs']['Scenario']['optimality_tolerance_techs']
 
-    logger.info("Running JuMP model ...")
+    logger.info("Running {} JuMP model ...".format("BAU" if bau else ""))
     try:
         t_start = time.time()
         julia_host = os.environ.get('JULIA_HOST', "julia")
@@ -126,7 +126,9 @@ def run_jump_model(self, dfm, data, bau=False):
             logger.info(msg)
             raise OptimizationTimeout(task=name, message=msg, run_uuid=run_uuid, user_uuid=user_uuid)
         elif status.strip().lower() != 'optimal':
-            logger.error("REopt status not optimal. Raising NotOptimal Exception.")
+            logger.error("{} REopt status not optimal ({}). Raising NotOptimal Exception.".format(
+                "BAU" if bau else "", status.strip())
+            )
             raise NotOptimal(task=name, run_uuid=run_uuid, status=status.strip(), user_uuid=user_uuid)
 
     profiler.profileEnd()

@@ -91,7 +91,7 @@ fts_post_2 = {"Scenario":
                                      "federal_rebate_us_dollars_per_kw": 0.0, "generator_sells_energy_back_to_grid": False},
                        "LoadProfile": {"loads_kw": load_list_2, "critical_loads_kw_is_net": False, "critical_load_pct": 0.5,
                                        "loads_kw_is_net": True, "monthly_totals_kwh": [],
-                                       "outage_start_time_step": 100*4, "outage_end_time_step": 124*4,
+                                       "outage_start_time_step": 400, "outage_end_time_step": 499,
                                        "year": 2018, "outage_is_major_event": True,
                                        "critical_loads_kw": [], "annual_kwh": None},
                        "Storage": {"max_kwh": 0.0, "max_kw": 0.0},

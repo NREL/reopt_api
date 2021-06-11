@@ -137,13 +137,12 @@ class EntryResourceTest(ResourceTestCaseMixin, TestCase):
         err_msg = str(json.loads(response.content)['messages']['input_errors'])
         self.assertTrue("Missing Required for Scenario>Site>LoadProfile: (outage_start_time_step)" in err_msg)
         
-
-        data['Scenario']['Site']['LoadProfile']['outage_start_time_step'] = 1
+        data['Scenario']['Site']['LoadProfile']['outage_start_time_step'] = 2
         data['Scenario']['Site']['LoadProfile']['outage_end_time_step'] = 1
         response = self.get_response(data)
         err_msg = str(json.loads(response.content)['messages']['input_errors'])
 
-        self.assertTrue("LoadProfile outage_end_time_step must be larger than outage_start_time_step and these inputs cannot be equal" in err_msg)
+        self.assertTrue("LoadProfile outage_end_time_step must be larger than outage_start_time_step" in err_msg)
 
     def test_valid_data_ranges(self):
 

@@ -93,8 +93,8 @@ class Util(Tech):
 
         if self.outage_start_time_step is not None and self.outage_end_time_step is not None:  # "turn off" grid resource
             # minus 1 in next line accounts for Python's zero-indexing
-            grid_prod_factor[self.outage_start_time_step - 1:self.outage_end_time_step - 1] = \
-                [0] * (self.outage_end_time_step - self.outage_start_time_step)
+            grid_prod_factor[self.outage_start_time_step - 1:self.outage_end_time_step] = \
+                [0] * (self.outage_end_time_step - self.outage_start_time_step + 1)
 
         return grid_prod_factor
 
@@ -280,8 +280,8 @@ class Generator(Tech):
         if self.generator_only_runs_during_grid_outage:
             if self.outage_start_time_step is not None and self.outage_end_time_step is not None:
                 # minus 1 in next line accounts for Python's zero-indexing
-                gen_prod_factor[self.outage_start_time_step - 1:self.outage_end_time_step - 1] \
-                    = [1] * (self.outage_end_time_step - self.outage_start_time_step)
+                gen_prod_factor[self.outage_start_time_step - 1:self.outage_end_time_step] \
+                    = [1] * (self.outage_end_time_step - self.outage_start_time_step + 1)
         else:
             gen_prod_factor = [1] * len(gen_prod_factor)
 
@@ -398,10 +398,10 @@ class CHP(Tech):
 
         # Ignore unavailability in timestep if it intersects with an outage interval
         if self.outage_start_time_step and self.outage_end_time_step:
-            chp_elec_prod_factor[self.outage_start_time_step - 1:self.outage_end_time_step - 1] = \
-                [1.0] * (self.outage_end_time_step - self.outage_start_time_step)
-            chp_thermal_prod_factor[self.outage_start_time_step - 1:self.outage_end_time_step - 1] = \
-                [1.0] * (self.outage_end_time_step - self.outage_start_time_step)
+            chp_elec_prod_factor[self.outage_start_time_step - 1:self.outage_end_time_step] = \
+                [1.0] * (self.outage_end_time_step - self.outage_start_time_step + 1)
+            chp_thermal_prod_factor[self.outage_start_time_step - 1:self.outage_end_time_step] = \
+                [1.0] * (self.outage_end_time_step - self.outage_start_time_step + 1)
 
         return chp_elec_prod_factor, chp_thermal_prod_factor
 

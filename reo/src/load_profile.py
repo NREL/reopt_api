@@ -36,10 +36,10 @@ from datetime import datetime, timedelta
 from collections import namedtuple
 from reo.utilities import degradation_factor
 import logging
-log = logging.getLogger(__name__)
 import geopandas as gpd
 from shapely import geometry as g
 from reo.exceptions import LoadProfileError
+log = logging.getLogger(__name__)
 
 default_annual_electric_loads = {
       "Albuquerque": {
@@ -348,6 +348,50 @@ default_annual_electric_loads = {
       }
     }
 
+
+def bau_outage_check(critical_loads_kw, existing_pv_kw_list, gen_existing_kw, gen_min_turn_down,
+                     fuel_gal, fuel_slope, fuel_intercept, time_steps_per_hour):
+    """
+    Determine if existing generator and/or PV can meet critical load and for how long
+    :param critical_loads_kw: list of float, length same as outage
+    :param existing_pv_kw_list:  list of float, length same as outage, existing pv production
+    :param gen_existing_kw: float, generator capacity
+    :param gen_min_turn_down: float zero to one
+    :param fuel_gal: float, gallons of fuel available
+    :param fuel_slope: float, gallons/kWh
+    :param fuel_intercept: float, gallons
+    :param time_steps_per_hour: int
+    :return: bool, int for number of time steps the existing generator and PV can meet the critical load, and
+        boolean for if the entire critical load is met
+    """
+    if gen_existing_kw == 0 and existing_pv_kw_list in [None, []]:
+        return False, 0
+
+    elif gen_existing_kw > 0:
+        if existing_pv_kw_list in [None, []]:
+            existing_pv_kw_list = [0] * len(critical_loads_kw)
+
+        for i, (load, pv) in enumerate(zip(critical_loads_kw, existing_pv_kw_list)):
+            unmet = load - pv
+            if unmet > 0:
+                fuel_kwh = (fuel_gal - fuel_intercept) / fuel_slope
+                gen_avail = min(fuel_kwh, gen_existing_kw * (1.0 / time_steps_per_hour))
+                gen_output = max(min(unmet, gen_avail), gen_min_turn_down * gen_existing_kw)
+                fuel_needed = fuel_intercept + fuel_slope * gen_output
+                fuel_gal -= fuel_needed
+
+                if gen_output < unmet:
+                    return False, i
+
+    else:  # gen_existing_kw = 0 and PV_existing_kw > 0
+        for i, (load, pv) in enumerate(zip(critical_loads_kw, existing_pv_kw_list)):
+            unmet = load - pv
+            if unmet > 0:
+                return False, i
+
+    return True, len(critical_loads_kw)
+
+
 class BuiltInProfile(object):
 
     library_path = os.path.join('input_files', 'LoadProfiles')
@@ -635,105 +679,38 @@ class LoadProfile(BuiltInProfile):
             self.load_list = copy.copy(self.unmodified_load_list)
             existing_pv_kw_list = None
         self.bau_load_list = copy.copy(self.load_list)
-
         """
         Account for outage in load_list (loads_kw).
             1. if user provides critical_loads_kw then splice it into load_list during outage.
             2. if user DOES NOT provide critical_loads_kw, use critical_load_pct to scale load_list during outage.
         In both cases, if existing PV and load is net then add existing PV to critical_loads_kw.
         """
+        outage_with_user_crit_load = all(x not in [critical_loads_kw, outage_start_time_step, outage_end_time_step]
+                                          for x in [None, []])
+        outage_with_crit_load_pct = None not in [critical_load_pct, outage_start_time_step, outage_end_time_step]
 
-        def resilienceCheck(critical_loads_kw, existing_pv_kw_list, gen_existing_kw, gen_min_turn_down,
-                            fuel_avail_before_outage, fuel_slope, fuel_intercept, time_steps_per_hour):
-            fuel_avail = fuel_avail_before_outage
-
-            i = -1
-
-            if gen_existing_kw == 0 and existing_pv_kw_list in [None, []]:
-                return False, 0
-
-            elif gen_existing_kw > 0:
-                if existing_pv_kw_list in [None, []]:
-                    existing_pv_kw_list = [0] * len(critical_loads_kw)
-
-                for i, (load, pv) in enumerate(zip(critical_loads_kw, existing_pv_kw_list)):
-                    unmet = load - pv
-                    if unmet > 0:
-                        fuel_to_kwh = (fuel_avail - fuel_intercept) / fuel_slope
-                        gen_avail = min(fuel_to_kwh, gen_existing_kw * (1.0/time_steps_per_hour))
-                        gen_output = max(min(unmet, gen_avail), gen_min_turn_down)
-                        fuel_needed = fuel_intercept + fuel_slope * gen_output
-                        fuel_avail -= fuel_needed
-
-                        if gen_output < unmet:
-                            resilience_check_flag = False
-                            bau_sustained_time_steps = i - 1
-
-                            return resilience_check_flag, bau_sustained_time_steps
-
-            else:  # gen_existing_kw = 0 and PV_existing_kw > 0
-                for i, (load, pv) in enumerate(zip(critical_loads_kw, existing_pv_kw_list)):
-                    unmet = load - pv
-                    if unmet > 0:
-                        resilience_check_flag = False
-                        bau_sustained_time_steps = i - 1
-
-                        return resilience_check_flag, bau_sustained_time_steps
-
-            bau_sustained_time_steps = i + 1
-            resilience_check_flag = True
-            return resilience_check_flag, bau_sustained_time_steps
-
-        if all(x not in [critical_loads_kw, outage_start_time_step, outage_end_time_step] for x in [None, []]):
+        if outage_with_user_crit_load:
 
             if existing_pv_kw_list is not None and critical_loads_kw_is_net:
                 # Add existing pv in if net critical load provided
                 for i, p in enumerate(existing_pv_kw_list):
                     critical_loads_kw[i] += p
             if existing_pv_kw_list is not None:
-                existing_pv_kw_list = existing_pv_kw_list[outage_start_time_step - 1:outage_end_time_step - 1]
+                existing_pv_kw_list = existing_pv_kw_list[outage_start_time_step - 1:outage_end_time_step]
 
-            # modify loads based on custom critical loads profile
-            self.load_list[outage_start_time_step - 1:outage_end_time_step - 1] = critical_loads_kw[outage_start_time_step - 1:outage_end_time_step - 1]
-            self.bau_load_list[outage_start_time_step - 1:outage_end_time_step - 1] = \
-                [0.0 for _ in critical_loads_kw[outage_start_time_step - 1:outage_end_time_step - 1]]
-
-            # fill in with zeros when diesel generator run out of fuel
-            resilience_check_flag, bau_sustained_time_steps = resilienceCheck(critical_loads_kw[outage_start_time_step - 1:outage_end_time_step - 1],
-                                                                   existing_pv_kw_list, gen_existing_kw, gen_min_turn_down,
-                                                                   fuel_avail_before_outage, fuel_slope, fuel_intercept,
-                                                                   self.time_steps_per_hour)
-            self.bau_load_list[outage_start_time_step:outage_start_time_step+bau_sustained_time_steps] = \
-                critical_loads_kw[outage_start_time_step:outage_start_time_step+bau_sustained_time_steps]
-
-
-        elif None not in [critical_load_pct, outage_start_time_step, outage_end_time_step]:  # use native_load * critical_load_pct
+        elif outage_with_crit_load_pct:  # use native_load * critical_load_pct
 
             if existing_pv_kw_list not in [None, []]:
-                existing_pv_kw_list = existing_pv_kw_list[outage_start_time_step - 1:outage_end_time_step - 1]
-
+                existing_pv_kw_list = existing_pv_kw_list[outage_start_time_step - 1:outage_end_time_step]
+                
             critical_loads_kw = [ld * critical_load_pct for ld in self.load_list]
             # Note: existing PV accounted for in load_list
-
-            # modify loads based on percentage
-            self.load_list[outage_start_time_step - 1:outage_end_time_step - 1] = critical_loads_kw[outage_start_time_step - 1:outage_end_time_step - 1]
-            self.bau_load_list[outage_start_time_step - 1:outage_end_time_step - 1] = \
-                [0.0 for _ in critical_loads_kw[outage_start_time_step - 1:outage_end_time_step - 1]]
-
-            # fill in with zeros when diesel generator run out of fuel
-            resilience_check_flag, bau_sustained_time_steps = resilienceCheck(critical_loads_kw[outage_start_time_step - 1:outage_end_time_step - 1],
-                                                                   existing_pv_kw_list, gen_existing_kw, gen_min_turn_down,
-                                                                   fuel_avail_before_outage, fuel_slope, fuel_intercept, 
-                                                                   self.time_steps_per_hour)
-
-            self.bau_load_list[outage_start_time_step:outage_start_time_step+bau_sustained_time_steps] = \
-                critical_loads_kw[outage_start_time_step:outage_start_time_step+bau_sustained_time_steps]
 
         elif critical_loads_kw not in [None, []]:
             """
              This elif is handling the case when a user uploads a critical load profile for resilience analysis and the
              financial run needs to pick up on the same critical load series for apple-to-apple comparison in the
-             outage-simulation stage.
+             outage-simulation stage. (This is a web app specific use-case)
             """
             resilience_check_flag = True
             bau_sustained_time_steps = 0 # no outage
@@ -743,11 +720,31 @@ class LoadProfile(BuiltInProfile):
             resilience_check_flag = True
             bau_sustained_time_steps = 0  # no outage
 
-        # resilience_check_flag: True if existing diesel can sustain critical load during outage
+        if outage_with_crit_load_pct or outage_with_crit_load_pct:
+
+            # splice critical loads in to load_list (used in optimal case)
+            self.load_list[outage_start_time_step - 1:outage_end_time_step] = \
+                critical_loads_kw[outage_start_time_step - 1:outage_end_time_step]
+
+            # replace bau load with zeros during outage
+            self.bau_load_list[outage_start_time_step - 1:outage_end_time_step] = \
+                [0.0 for _ in critical_loads_kw[outage_start_time_step - 1:outage_end_time_step]]
+
+            resilience_check_flag, bau_sustained_time_steps = \
+                bau_outage_check(critical_loads_kw[outage_start_time_step - 1:outage_end_time_step],
+                                    existing_pv_kw_list, gen_existing_kw, gen_min_turn_down,
+                                    fuel_avail_before_outage, fuel_slope, fuel_intercept,
+                                    self.time_steps_per_hour)
+
+            if bau_sustained_time_steps > 0:  # include critical load in bau load for the time that it can be met
+                self.bau_load_list[outage_start_time_step:outage_start_time_step+bau_sustained_time_steps] = \
+                    critical_loads_kw[outage_start_time_step:outage_start_time_step+bau_sustained_time_steps]
+
+        # resilience_check_flag: True if existing diesel and/or PV can sustain critical load during outage
         self.resilience_check_flag = resilience_check_flag
         self.bau_sustained_time_steps = bau_sustained_time_steps
-        self.annual_kwh = int(round(sum(self.load_list),0))
-        self.bau_annual_kwh = int(round(sum(self.bau_load_list),0))
+        self.annual_kwh = int(round(sum(self.load_list), 0))
+        self.bau_annual_kwh = int(round(sum(self.bau_load_list), 0))
         self.loads_kw_is_net = loads_kw_is_net
         self.critical_loads_kw_is_net = critical_loads_kw_is_net
         self.critical_load_series_kw = critical_loads_kw

@@ -29,6 +29,9 @@
 # *********************************************************************************
 from keys import *
 import sys
+import os
+import django
+import rollbar
 """
 Django settings for reopt_api project.
 
@@ -42,8 +45,6 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-import os
-import django
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -69,6 +70,7 @@ INSTALLED_APPS = (
     'tastypie',
     'proforma',
     'resilience_stats',
+    'futurecosts',
     'django_celery_results',
     'django_extensions'
     )
@@ -146,7 +148,6 @@ else:
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
-import rollbar
 rollbar.init(**ROLLBAR)
 
 LANGUAGE_CODE = 'en-us'
@@ -169,6 +170,8 @@ CELERY_IMPORTS = (
     'reo.process_results',
     'reo.src.run_jump_model',
     'resilience_stats.outage_simulator_LF',
+    'futurecosts.api',
+    'futurecosts.tasks',
 )
 
 if 'test' in sys.argv:

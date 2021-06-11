@@ -97,6 +97,11 @@ class Job(ModelResource):
         return self.get_object_list(bundle.request)
 
     def obj_create(self, bundle, **kwargs):
+
+        # to use the Job API from within the REopt API (see futurecosts/api.py)
+        if isinstance(bundle, dict):
+            bundle = self.build_bundle(obj=Job(), data=bundle)
+
         run_uuid = str(uuid.uuid4())
         data = dict()
         data["outputs"] = {"Scenario": {'run_uuid': run_uuid, 'api_version': api_version,

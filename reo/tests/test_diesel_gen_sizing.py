@@ -100,22 +100,22 @@ class GeneratorSizingTests(ResourceTestCaseMixin, TestCase):
 
         d_expected = dict()
         d_expected['lcc'] = 242935.0
-        d_expected['npv'] = -3958.0
+        d_expected['npv'] = -3963.0
         d_expected['pv_kw'] = 100.0
         d_expected['batt_kw'] = 0.0
         d_expected['batt_kwh'] = 0.0
         d_expected['gen_kw'] = 5.85713
-        d_expected['fuel_used_gal'] = 0.76
+        d_expected['fuel_used_gal'] = 0.912
         #d_expected['avoided_outage_costs_us_dollars'] = 2982.63
         d_expected['microgrid_upgrade_cost_us_dollars'] = 1054.2
         d_expected['gen_total_variable_om_cost_us_dollars'] = 1.0
         d_expected['existing_pv_om_cost_us_dollars'] = 11507.0
-        d_expected['net_capital_costs_plus_om'] = 15466.0
-        d_expected['year_one_emissions_lb_C02'] = 421702.1
-        d_expected['year_one_emissions_bau_lb_C02'] = 421766.1
-        d_expected['utility_year_one_emissions_lb_C02'] = 421702.1
-        d_expected['utility_year_one_emissions_bau_lb_C02'] = 421702.1
-        d_expected['generator_year_one_emissions_lb_C02'] = 17.1
+        d_expected['net_capital_costs_plus_om'] = 15470.0
+        d_expected['year_one_emissions_lb_C02'] = 421693.1
+        d_expected['year_one_emissions_bau_lb_C02'] = 421672.6
+        d_expected['utility_year_one_emissions_lb_C02'] = 421672.6
+        d_expected['utility_year_one_emissions_bau_lb_C02'] = 421672.6
+        d_expected['generator_year_one_emissions_lb_C02'] = 20.5
         d_expected['generator_year_one_emissions_bau_lb_C02'] = 0
 
         try:
