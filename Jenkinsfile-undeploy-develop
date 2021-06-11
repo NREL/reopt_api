@@ -41,7 +41,7 @@ pipeline {
         TMPDIR = tadaDockerInDockerTmp()
         WERF_LOG_VERBOSE = "true"
         DEPLOY_ENV = "develop"
-        RANCHER_PROJECT = "reopt-api-develop"
+        RANCHER_PROJECT = "reopt-api-dev"
         DB_BASE_NAME = "reopt_api_develop"
       }
 
