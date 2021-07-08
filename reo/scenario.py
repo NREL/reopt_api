@@ -277,10 +277,15 @@ def setup_scenario(self, run_uuid, data, raw_post):
         fuel_tariff = FuelTariff(dfm=dfm, time_steps_per_hour=inputs_dict['time_steps_per_hour'],
                                  **inputs_dict['Site']['FuelTariff'])
 
+        # Temporarily feed in placeholder rate information in off-grid analyses
+        if inputs_dict.get('off_grid_flag') is True:
+            inputs_dict['Site']['ElectricTariff']['blended_annual_rates_us_dollars_per_kwh'] = 0.0
+            inputs_dict['Site']['ElectricTariff']['blended_annual_demand_charges_us_dollars_per_kw'] = 0.0
+
         elec_tariff = ElecTariff(dfm=dfm, run_id=run_uuid,
-                                 load_year=lp.year,
-                                 time_steps_per_hour=inputs_dict.get('time_steps_per_hour'),
-                                 **inputs_dict['Site']['ElectricTariff'])
+                                load_year=lp.year,
+                                time_steps_per_hour=inputs_dict.get('time_steps_per_hour'),
+                                **inputs_dict['Site']['ElectricTariff'])
 
         if inputs_dict["Site"]["Wind"]["max_kw"] > 0:
             wind = Wind(dfm=dfm, inputs_path=inputs_path, 
@@ -332,6 +337,7 @@ def setup_scenario(self, run_uuid, data, raw_post):
                     )
                     
         dfm.add_soc_incentive = inputs_dict['add_soc_incentive']
+        dfm.off_grid_flag = inputs_dict['off_grid_flag']
 
         dfm.finalize()
         dfm_dict = vars(dfm)  # serialize for celery

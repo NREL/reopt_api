@@ -102,19 +102,204 @@ def list_of_dict(input):
     result.append(dict(i))
   return result
 
+off_grid_defaults = {
+  "Scenario": {
+    "optimality_tolerance_techs": {
+      "type": "float",
+      "min": 1.0e-5,
+      "max": 10.0,
+      "default": 0.05,
+      "description": "The threshold for the difference between the solution's objective value and the best possible value at which the solver terminates"
+    },
+    "Site": {
+      "Financial": {
+        "om_cost_escalation_pct": {
+          "type": "float",
+          "min": -1.0,
+          "max": 1.0,
+          "default": 0.0,
+          "description": "Annual nominal O&M cost escalation rate"
+        },
+        "generator_fuel_escalation_pct": {
+          "type": "float",
+          "min": -1.0,
+          "max": 1.0,
+          "default": 0.03,
+          "description": "Annual nominal diesel generator fuel cost escalation rate"
+        },
+        "offtaker_tax_pct": {
+          "type": "float",
+          "min": 0.0,
+          "max": 0.999,
+          "default": 0,
+          "description": "Host tax rate"
+        },
+        "offtaker_discount_pct": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.15,
+          "description": "Nominal energy offtaker discount rate. In single ownership model the offtaker is also the generation owner."
+        },
+        "owner_tax_pct": {
+          "type": "float",
+          "min": 0.0,
+          "max": 0.999,
+          "default": 0,
+          "description": "Generation owner tax rate. Used for two party financing model. In two party ownership model the offtaker does not own the generator(s)."
+        },
+        "owner_discount_pct": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.15,
+          "description": "Nominal generation owner discount rate. Used for two party financing model. In two party ownership model the offtaker does not own the generator(s)."
+        }
+      },
+      "LoadProfile": {
+        "critical_load_pct": {
+          "type": "float",
+          "min": 0.0,
+          "max": 2.0,
+          "default": 1.0,
+          "description": "Critical load factor is multiplied by the typical load to determine the critical load that must be met during an outage. Value must be between zero and one, inclusive."
+        },
+        "outage_is_major_event": {
+          "type": "bool",
+          "default": False,
+          "description": "Boolean value for if outage is a major event, which affects the avoided_outage_costs_us_dollars. If True, the avoided outage costs are calculated for a single outage occurring in the first year of the analysis_years. If False, the outage event is assumed to be an average outage event that occurs every year of the analysis period. In the latter case, the avoided outage costs for one year are escalated and discounted using the escalation_pct and offtaker_discount_pct to account for an annually recurring outage. (Average outage durations for certain utility service areas can be estimated using statistics reported on EIA form 861.)"
+        }
+      },
+      "PV": {
+        "installed_cost_us_dollars_per_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e5,
+          "default": 1044.0,
+          "description": "Installed PV cost in $/kW"
+        },
+        "om_cost_us_dollars_per_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e3,
+          "default": 16.0,
+          "description": "Annual PV operations and maintenance costs in $/kW"
+        }
+      },
+      "Storage": {
+        "soc_init_pct": {
+          "type": "float", "min": 0.0, "max": 1.0, "default": 1.0,
+          "description": "Battery state of charge at first hour of optimization"
+        },
+        "installed_cost_us_dollars_per_kw": {
+          "type": "float", "min": 0.0, "max": 1.0e4, "default": 505.0,
+          "description": "Total upfront battery power capacity costs (e.g. inverter and balance of power systems)"
+        },
+        "installed_cost_us_dollars_per_kwh": {
+          "type": "float", "min": 0.0, "max": 1.0e4, "default": 400.0,
+          "description": "Total upfront battery costs"
+        },
+        "replace_cost_us_dollars_per_kw": {
+          "type": "float", "min": 0.0, "max": 1.0e4, "default": 505.0,
+          "description": "Battery power capacity replacement cost at time of replacement year"
+        },
+        "replace_cost_us_dollars_per_kwh": {
+          "type": "float", "min": 0.0, "max": 1.0e4, "default": 400.0,
+          "description": "Battery energy capacity replacement cost at time of replacement year"
+        },
+        "inverter_replacement_year": {
+          "type": "float", "min": 0.0, "max": max_years, "default": 15.0,
+          "description": "Number of years from start of analysis period to replace inverter"
+        },
+        "battery_replacement_year": {
+          "type": "float", "min": 0.0, "max": max_years, "default": 7.0,
+          "description": "Number of years from start of analysis period to replace battery"
+        }
+      },
+      "Generator": {
+        "installed_cost_us_dollars_per_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e5,
+          "default": 282.0,
+          "description": "Installed diesel generator cost in $/kW"
+        },
+        "om_cost_us_dollars_per_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e3,
+          "default": 25.0,
+          "description": "Annual diesel generator fixed operations and maintenance costs in $/kW"
+        },
+        "om_cost_us_dollars_per_kwh": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e3,
+          "default": 0.023,
+          "description": "diesel generator per unit production (variable) operations and maintenance costs in $/kWh"
+        },
+        "diesel_fuel_cost_us_dollars_per_gallon": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e2,
+          "default": 3.0,
+          "description": "diesel cost in $/gallon"
+        },
+        "fuel_slope_gal_per_kwh": {
+          "type": "float",
+          "min": 0.0,
+          "max": 10,
+          "default": 0.1,
+          "description": "Generator fuel burn rate in gallons/kWh."
+        },
+        "fuel_intercept_gal_per_hr": {
+          "type": "float",
+          "min": 0.0,
+          "max": 10,
+          "default": 0.0,
+          "description": "Generator fuel consumption curve y-intercept in gallons per hour."
+        },
+        "fuel_avail_gal": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e9,
+          "default": 1.0e9,
+          "description": "On-site generator fuel available in gallons."
+        },
+        "min_turn_down_pct": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.15,
+          "description": "Minimum generator loading in percent of capacity (size_kw)."
+        },
+        "generator_only_runs_during_grid_outage": {
+          "default": False,
+          "type": "bool",
+          "description": "If there is existing diesel generator, must specify whether it should run only during grid outage or all the time in the bau case."
+        },
+        "useful_life_years": {
+          "type": "float", "min": 0.0, "max": max_years, "default": 10,
+          "description": "Number of years asset can be used for before replacement"
+        }
+      }
+    }
+  }
+}
+
 nested_input_definitions = {
 
   "Scenario": {
     "timeout_seconds": {
       "type": "int",
       "min": 1,
-      "max": 420,
+      "max": 36000,
       "default": 420,
       "description": "The number of seconds allowed before the optimization times out"
     },
     "user_uuid": {
       "type": "str",
-      "description": "The assigned unique ID of a signed in REOpt user"
+      "description": "The assigned unique ID of a signed in REopt user"
     },
     "description": {
       "type": "str",
@@ -130,14 +315,14 @@ nested_input_definitions = {
       "type": "str",
       "description": "The unique ID of a scenario created by the REopt Lite Webtool. Note that this ID can be shared by several REopt Lite API Scenarios (for example when users select a 'Resilience' analysis more than one REopt API Scenario is created)."
     },
-  "optimality_tolerance_bau": {
+    "optimality_tolerance_bau": {
       "type": "float",
       "min": 1.0e-5,
       "max": 10.0,
       "default": 0.001,
       "description": "The threshold for the difference between the solution's objective value and the best possible value at which the solver terminates"
     },
-  "optimality_tolerance_techs": {
+    "optimality_tolerance_techs": {
       "type": "float",
       "min": 1.0e-5,
       "max": 10.0,
@@ -149,7 +334,11 @@ nested_input_definitions = {
       "default": True,
       "description": "If True, then a small incentive to keep the battery's state of charge high is added to the objective of the optimization."
     },
-
+    "off_grid_flag": {
+      "type": "bool",
+      "default": False,
+      "description": "Set to True to enable off-grid analyses."
+    },
     "Site": {
       "latitude": {
         "type": "float",
@@ -193,7 +382,6 @@ nested_input_definitions = {
         "default": 0.0,
         "description": "Site elevation (above sea sevel), units of feet"
       },
-
       "Financial": {
         "om_cost_escalation_pct": {
           "type": "float",
@@ -208,6 +396,13 @@ nested_input_definitions = {
           "max": 1.0,
           "default": 0.023,
           "description": "Annual nominal utility electricity cost escalation rate"
+        },
+        "generator_fuel_escalation_pct": {
+          "type": "float",
+          "min": -1.0,
+          "max": 1.0,
+          "default": 0.03,
+          "description": "Annual nominal diesel generator fuel cost escalation rate"
         },
         "boiler_fuel_escalation_pct": {
           "type": "float",
@@ -276,6 +471,20 @@ nested_input_definitions = {
           "max": 1.0,
           "default": 0.3,
           "description": "Additional cost, in percent of non-islandable capital costs, to make a distributed energy system islandable from the grid and able to serve critical loads. Includes all upgrade costs such as additional laber and critical load panels."
+        },
+        "other_capital_costs_us_dollars": {
+          "type": "float",
+          "min": 0.0,
+          "max": max_big_number,
+          "default": 0,
+          "description": "Other capital costs."
+        },
+        "other_annual_costs_us_dollars_per_year": {
+          "type": "float",
+          "min": 0.0,
+          "max": max_big_number,
+          "default": 0,
+          "description": "Other annual costs."
         }
       },
 
@@ -375,6 +584,20 @@ nested_input_definitions = {
           "default": True,
           "description": "Boolean value for if outage is a major event, which affects the avoided_outage_costs_us_dollars. If True, the avoided outage costs are calculated for a single outage occurring in the first year of the analysis_years. If False, the outage event is assumed to be an average outage event that occurs every year of the analysis period. In the latter case, the avoided outage costs for one year are escalated and discounted using the escalation_pct and offtaker_discount_pct to account for an annually recurring outage. (Average outage durations for certain utility service areas can be estimated using statistics reported on EIA form 861.)"
         },
+        "min_load_met_pct": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 1.0,
+          "description": "Fraction of the load that must be met on an annual energy basis. Value must be between zero and one, inclusive."
+        },
+        "sr_required_pct": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.2,
+          "description": "Spinning reserve requirement for changes in load in off-grid analyses. Value must be between zero and one, inclusive."
+        }
       },
 
       "LoadProfileBoilerFuel": {
@@ -1063,6 +1286,13 @@ nested_input_definitions = {
           "type": "bool",
           "default": True,
           "description": "True/False for if technology can curtail energy produced."
+        },
+        "sr_required_pct": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.5,
+          "description": "Spinning reserve requirement for PV serving load in off-grid analyses. Value must be between zero and one, inclusive."
         }
       },
 
@@ -1154,7 +1384,7 @@ nested_input_definitions = {
           "total_rebate_us_dollars_per_kwh": {
             "type": "float", "min": 0, "max": 1e9, "default": 0,
             "description": "Rebate based on installed energy capacity"
-           }             
+          }
         },
 
       "Generator": {
@@ -1386,6 +1616,10 @@ nested_input_definitions = {
           "type": "bool",
           "default": False,
           "description": "True/False for if technology can curtail energy produced."
+        },
+        "useful_life_years": {
+          "type": "float", "min": 0.0, "max": max_years, "default": analysis_years,
+          "description": "Number of years asset can be used for before replacement"
         }
       },
       "CHP": {

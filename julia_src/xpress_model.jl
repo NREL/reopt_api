@@ -28,7 +28,7 @@
 # OF THE POSSIBILITY OF SUCH DAMAGE.
 # *********************************************************************************
 function xpress_model(MAXTIME, MIPRELSTOP)
-    m = direct_model(Xpress.Optimizer(MAXTIME=-MAXTIME, MIPRELSTOP=MIPRELSTOP, OUTPUTLOG = 0))
+    m = direct_model(Xpress.Optimizer(MAXTIME=-MAXTIME, MIPRELSTOP=MIPRELSTOP, OUTPUTLOG = 0)) #logfile="output.log"))
 	m[:solver_name] = "Xpress"
 	m[:timeout_seconds] = MAXTIME
 	m[:optimality_tolerance] = MIPRELSTOP

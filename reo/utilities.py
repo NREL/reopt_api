@@ -28,7 +28,7 @@
 # OF THE POSSIBILITY OF SUCH DAMAGE.
 # *********************************************************************************
 from numpy import npv
-from math import log10
+from math import log10, ceil
 from reo.models import ErrorModel
 import pandas as pd
 import numpy as np
@@ -163,6 +163,40 @@ def setup_capital_cost_incentive(itc_basis, replacement_cost, replacement_year,
     # Adjust cost curve to account for itc and depreciation savings ($/kW)
     cap_cost_slope = itc_basis - tax_savings + replacement
 
+    # Sanity check
+    if cap_cost_slope < 0:
+        cap_cost_slope = 0
+
+    return round(cap_cost_slope, 4)
+
+
+def setup_capital_cost_offgrid(analysis_period, discount_rate, init_cost, replacement_cost, useful_life):
+
+    """ effective PV and battery prices considering multiple asset replacements over the analysis
+        period and a final salvage value
+    """
+
+    # Total number of replacements needed
+    n_replacements = ceil(analysis_period / useful_life) - 1
+
+    replacement_years = []
+    replacement_costs = []
+
+    # Calculate discounted cost of each replacement 
+    for i in range(n_replacements): 
+        replacement_year = useful_life * (i + 1)    
+        replacement_years.append(replacement_year)
+        replacement_costs.append(replacement_cost * (1+discount_rate)**(-1*replacement_year))
+
+    # Find salvage value if any
+    salvage_value = 0 
+    if analysis_period % useful_life != 0:
+        salvage_years = useful_life - (analysis_period - max(replacement_years))
+        salvage_value = (salvage_years/useful_life) * replacement_cost * ((1 + discount_rate)**(-1*analysis_period))
+
+    # Final cost curve accounts for asset replacements and salvage value    
+    cap_cost_slope = init_cost + sum(replacement_costs) - salvage_value    
+    
     # Sanity check
     if cap_cost_slope < 0:
         cap_cost_slope = 0

@@ -624,6 +624,8 @@ class LoadProfile(BuiltInProfile):
         # "pop"ing the following two values to replace them before calling BuiltInProfile (super class)
         doe_reference_name_list = kwargs.pop("doe_reference_name", [])
         self.annual_kwh = kwargs.pop("annual_kwh", None)
+        self.min_load_met_pct = kwargs.get("min_load_met_pct")
+        self.sr_required_pct = kwargs.get("sr_required_pct")
 
         if user_profile:
             self.load_list = user_profile
@@ -743,8 +745,9 @@ class LoadProfile(BuiltInProfile):
         # resilience_check_flag: True if existing diesel and/or PV can sustain critical load during outage
         self.resilience_check_flag = resilience_check_flag
         self.bau_sustained_time_steps = bau_sustained_time_steps
-        self.annual_kwh = int(round(sum(self.load_list), 0))
-        self.bau_annual_kwh = int(round(sum(self.bau_load_list), 0))
+        # Off-grid can't meeting 100% of load if rounding up
+        self.annual_kwh = int(round(sum(self.load_list)))
+        self.bau_annual_kwh = int(round(sum(self.bau_load_list),0))
         self.loads_kw_is_net = loads_kw_is_net
         self.critical_loads_kw_is_net = critical_loads_kw_is_net
         self.critical_load_series_kw = critical_loads_kw

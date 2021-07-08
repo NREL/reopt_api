@@ -232,6 +232,16 @@ Base.@kwdef struct Parameter
 	CHPStandbyCharge::Float64
 	CHPDoesNotReduceDemandCharges::Int64
 	StorageDecayRate::AxisArray
+
+	#Offgrid systems
+	OffGridFlag::Bool
+	TechsRequiringSR::Array{String,1}
+	TechsProvidingSR::Array{String,1}
+	MinLoadMetPct::Float64
+	SRrequiredPctLoad::Float64
+	SRrequiredPctTechs::AxisArray
+    OtherCapitalCosts::Float64
+    OtherAnnualCosts::Float64
 end
 
 
@@ -354,6 +364,9 @@ function Parameter(d::Dict)
 	d["CHPThermalProdFactor"] = vector_to_axisarray(d["CHPThermalProdFactor"],d["CHPTechs"],d[:TimeStep])
 	d["pwf_fuel"] = AxisArray(d["pwf_fuel"], d["Tech"])
 	d["StorageDecayRate"] = AxisArray(d["StorageDecayRate"], d["Storage"])
+
+	# Off-grid Modeling
+	d["SRrequiredPctTechs"] = AxisArray(d["SRrequiredPctTechs"], d["TechsProvidingSR"])
 
     # Indexed Sets
     if isempty(d["FuelType"])

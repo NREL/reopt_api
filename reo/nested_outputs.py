@@ -139,6 +139,26 @@ nested_output_definitions = {
                   "type": "int",
                   "description": "Number of time steps the existing system can sustain the critical load",
                   "units": "time steps"
+                },
+                "load_met_series_kw": {
+                  "type": "list_of_float",
+                  "description": "Spinning reserve requirement for changes in load in each time step",
+                  "units": "kW"
+                },
+                "sr_required_series_kw": {
+                  "type": "list_of_float",
+                  "description": "Spinning reserve requirement for changes in load in each time step",
+                  "units": "kW"
+                },
+                "total_sr_required": {
+                  "type": "list_of_float",
+                  "description": "Total spinning reserve required",
+                  "units": "kW"
+                },
+                "total_sr_provided": {
+                  "type": "list_of_float",
+                  "description": "Total spinning reserve provided",
+                  "units": "kW"
                 }
               },
 
@@ -310,7 +330,52 @@ nested_output_definitions = {
                   "description": ("Net O&M and replacement costs in present value, after-tax for the third-party "
                                   "developer. Only calculated in the third-party case."),
                   "units": "$"
-                 }
+                 },
+                "additional_cap_costs_us_dollars": {
+                  "type": "float",
+                  "description": ("Additional capital costs as specified by the user."),
+                  "units": "$"
+                },
+                "total_annual_cost_us_dollars": {
+                  "type": "float",
+                  "description": ("Life-cycle sum of all annual costs."),
+                  "units": "$"
+                },
+                "microgrid_lcoe_us_dollars_per_kwh": {
+                  "type": "float",
+                  "description": ("Cost reflective tariff of the off-grid system in USD/kWh. In off-grid analyses only."),
+                  "units": "$"
+                },
+                "lcoe_component_fuel_us_dollars_per_kwh": {
+                  "type": "float",
+                  "description": ("Fuel component of the LCOE in USD/kWh. In off-grid analyses only."),
+                  "units": "$"
+                },
+                "lcoe_component_re_capex_us_dollars_per_kwh": {
+                  "type": "float",
+                  "description": ("Renewable energy CAPEX component of the LCOE in USD/kWh. In off-grid analyses only."),
+                  "units": "$"
+                },
+                "lcoe_component_diesel_capex_us_dollars_per_kwh": {
+                  "type": "float",
+                  "description": ("Diesel CAPEX component of the LCOE in USD/kWh. In off-grid analyses only."),
+                  "units": "$"
+                },
+                "lcoe_component_other_capex_us_dollars_per_kwh": {
+                  "type": "float",
+                  "description": ("Other CAPEX component of the LCOE in USD/kWh. In off-grid analyses only."),
+                  "units": "$"
+                },
+                "lcoe_component_om_us_dollars_per_kwh": {
+                  "type": "float",
+                  "description": ("O&M cost component of the LCOE in USD/kWh. In off-grid analyses only."),
+                  "units": "$"
+                },
+                "lcoe_component_other_annual_costs_us_dollars_per_kwh": {
+                  "type": "float",
+                  "description": ("Other annual cost component of the LCOE in USD/kWh. In off-grid analyses only."),
+                  "units": "$"
+                }
               },
 
               "PV": {
@@ -393,6 +458,16 @@ nested_output_definitions = {
                   "description": "Year one PV power curtailed during outage time series",
                   "units": "kW"
                 },
+                "sr_required_series_kw": {
+                  "type": "list_of_float",
+                  "description": "Spinning reserve requirement for PV serving load in each time step",
+                  "units": "kW"
+                },
+                "sr_provided_series_kw": {
+                  "type": "list_of_float",
+                  "description": "Spinning reserve provided by the PV system in each time step",
+                  "units": "kW"
+                }
               },
 
               "Wind": {
@@ -440,7 +515,7 @@ nested_output_definitions = {
                   "type": "list_of_float",
                   "description": "Year one Wind power curtailed during outage time series",
                   "units": "kW"
-                },
+                }
               },
 
               "Storage": {
@@ -468,6 +543,11 @@ nested_output_definitions = {
                   "type": "list_of_float",
                   "description": "Year one hourly time series of battery state of charge",
                   "units": "%"
+                },
+                "sr_provided_series_kw": {
+                  "type": "list_of_float",
+                  "description": "Spinning reserve provided by the battery in each time step",
+                  "units": "kW"
                 }
               },
 
@@ -812,6 +892,16 @@ nested_output_definitions = {
                   "type": "int",
                   "description": "Total equivalent pounds of carbon dioxide emitted from BAU generator use in the first year.",
                   "units": "lb CO2"
+                },
+                "sr_provided_series_kw": {
+                  "type": "list_of_float",
+                  "description": "Spinning reserve provided by the generator in each time step",
+                  "units": "kW"
+                },
+                "fuel_used_series_gal": {
+                  "type": "list_of_float",
+                  "description": "Temp variable for fuel usage at each hour",
+                  "units": "US gallons"
                 }
               },
 

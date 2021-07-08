@@ -38,7 +38,7 @@ from reo.exceptions import REoptError, UnexpectedError
 from reo.models import ModelManager, PVModel, FinancialModel, WindModel, AbsorptionChillerModel
 from reo.src.profiler import Profiler
 from reo.src.emissions_calculator import EmissionsCalculator
-from reo.utilities import annuity, TONHOUR_TO_KWHT, MMBTU_TO_KWH, GAL_DIESEL_TO_KWH
+from reo.utilities import annuity, TONHOUR_TO_KWHT, MMBTU_TO_KWH, GAL_DIESEL_TO_KWH, setup_capital_cost_offgrid
 from reo.nested_inputs import macrs_five_year, macrs_seven_year
 from reo.src.proforma_metrics import calculate_proforma_metrics
 from reo.src.storage import HotTES, ColdTES
@@ -307,6 +307,69 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
                                               (1 - self.inputs["Financial"]["owner_tax_pct"])
             return round(upfront_capex_after_incentives, 2)
 
+        @property
+        def get_offgrid_lcoe_breakdown(self):
+
+            lcoe_component_fuel = None
+            lcoe_component_re_capex = None
+            lcoe_component_diesel_capex = None
+            lcoe_component_other_capex = None
+            lcoe_component_om = None
+            lcoe_component_other_annual_costs = None
+            lcoe = self.nested_outputs["Scenario"]["Site"]["Financial"]["microgrid_lcoe_us_dollars_per_kwh"]
+            
+            if lcoe is not None:
+                lcc = self.nested_outputs["Scenario"]["Site"]["Financial"]["lcc_us_dollars"]
+                
+                fuel = (self.nested_outputs["Scenario"]['Site']['Generator']['total_fuel_cost_us_dollars'] or 0)
+                other_capex = (self.nested_outputs["Scenario"]["Site"]["Financial"]["additional_cap_costs_us_dollars"] or 0)
+                other_annual_costs = (self.nested_outputs["Scenario"]["Site"]["Financial"]["total_annual_cost_us_dollars"] or 0)
+                
+                analysis_period = self.inputs["Financial"]["analysis_years"]
+                discount_rate = self.inputs["Financial"]["owner_discount_pct"]
+                diesel_unit_cost = setup_capital_cost_offgrid(analysis_period, discount_rate,
+                                   self.inputs["Generator"]["installed_cost_us_dollars_per_kw"],
+                                   self.inputs["Generator"]["installed_cost_us_dollars_per_kw"],
+                                   self.inputs["Generator"]["useful_life_years"])
+                inverter_unit_cost = setup_capital_cost_offgrid(analysis_period, discount_rate,
+                                   self.inputs["Storage"]["installed_cost_us_dollars_per_kw"],
+                                   self.inputs["Storage"]["replace_cost_us_dollars_per_kw"],
+                                   self.inputs["Storage"]["inverter_replacement_year"])
+                battery_unit_cost = setup_capital_cost_offgrid(analysis_period, discount_rate,
+                                   self.inputs["Storage"]["installed_cost_us_dollars_per_kwh"],
+                                   self.inputs["Storage"]["replace_cost_us_dollars_per_kwh"],
+                                   self.inputs["Storage"]["battery_replacement_year"])
+                pv_om = 0
+                for i in range(len(self.nested_outputs['Scenario']['Site']['PV'])):
+                    pv_om += self.nested_outputs['Scenario']['Site']['PV'][i]['total_fixed_om_cost_us_dollars']
+
+                diesel_variable_om = (self.nested_outputs['Scenario']['Site']['Generator']['total_variable_om_cost_us_dollars'] or 0)
+                diesel_fixed_om = (self.nested_outputs['Scenario']['Site']['Generator']['total_fixed_om_cost_us_dollars'] or 0)
+                total_om = pv_om + diesel_variable_om + diesel_fixed_om
+
+                diesel_capex = max(diesel_unit_cost * (self.nested_outputs["Scenario"]["Site"]["Generator"]["size_kw"]
+                                   - self.inputs["Generator"]["existing_kw"]), 0)
+                re_capex = 0
+                for pv in self.inputs["PV"]:
+                    re_capex += max(pv["installed_cost_us_dollars_per_kw"]
+                                    * (self.nested_outputs["Scenario"]["Site"]["PV"][pv["pv_number"]-1]["size_kw"]
+                                    - pv["existing_kw"]), 0)
+                for tech in ["Storage"]:
+                    re_capex += inverter_unit_cost * (self.nested_outputs["Scenario"]["Site"][tech].get("size_kw") or 0)
+
+                # storage capacity
+                re_capex += battery_unit_cost * (self.nested_outputs["Scenario"]["Site"]["Storage"].get("size_kwh") or 0)
+            
+                lcoe_component_fuel = round((fuel/lcc) * lcoe, 4)
+                lcoe_component_re_capex = round((re_capex/lcc) * lcoe, 4)
+                lcoe_component_diesel_capex = round((diesel_capex/lcc) * lcoe, 4)
+                lcoe_component_other_capex = round((other_capex/lcc) * lcoe, 4)
+                lcoe_component_om = round((total_om/lcc) * lcoe, 4)
+                lcoe_component_other_annual_costs = round((other_annual_costs/lcc) * lcoe, 4)
+
+            return lcoe_component_fuel, lcoe_component_re_capex, lcoe_component_diesel_capex, \
+                   lcoe_component_other_capex, lcoe_component_om, lcoe_component_other_annual_costs
+
         def calculate_lcoe(self, tech_results_dict, tech_inputs_dict, financials):
             """
             The LCOE is calculated as annualized costs (capital and O+M translated to current value) divided by annualized energy
@@ -438,6 +501,11 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
                     self.nested_outputs["Scenario"]["Site"][name]["sustain_hours"] = int(self.dm["LoadProfile"].get("bau_sustained_time_steps") / (len(self.dm["LoadProfile"].get("year_one_electric_load_series_kw"))/8760))
                     self.nested_outputs["Scenario"]["Site"][name]["bau_sustained_time_steps"] = self.dm["LoadProfile"].get("bau_sustained_time_steps")
                     self.nested_outputs["Scenario"]["Site"][name]['loads_kw'] = self.dm["LoadProfile"].get("year_one_electric_load_series_kw")
+                    self.nested_outputs["Scenario"]["Site"][name]["load_met_series_kw"] = self.results_dict.get("load_met")
+                    self.nested_outputs["Scenario"]["Site"][name]["sr_required_series_kw"] = self.results_dict.get("sr_required_load")
+                    #Debug variables
+                    self.nested_outputs["Scenario"]["Site"][name]["total_sr_required"] = self.results_dict.get("tot_sr_required")
+                    self.nested_outputs["Scenario"]["Site"][name]["total_sr_provided"] = self.results_dict.get("tot_sr_provided")
                 elif name == "LoadProfileBoilerFuel":
                     self.nested_outputs["Scenario"]["Site"][name]["annual_calculated_boiler_fuel_load_mmbtu_bau"] = \
                         self.dm["LoadProfile"].get("annual_heating_mmbtu")
@@ -473,6 +541,12 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
                         "year_one_om_costs_after_tax")
                     self.nested_outputs["Scenario"]["Site"][name]["year_one_om_costs_before_tax_us_dollars"] = \
                         self.results_dict.get("year_one_om_costs_before_tax")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "additional_cap_costs_us_dollars"] = self.results_dict.get("total_other_cap_costs")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "total_annual_cost_us_dollars"] = self.results_dict.get("total_annual_costs")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "microgrid_lcoe_us_dollars_per_kwh"] = self.results_dict.get("microgrid_lcoe")
                 elif name == "PV":
                     pv_models = list(PVModel.objects.filter(run_uuid=meta['run_uuid']).order_by('pv_number'))
                     template_pv = copy.deepcopy(self.nested_outputs['Scenario']["Site"][name])
@@ -491,6 +565,8 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
                         pv["year_one_to_load_series_kw"] = self.results_dict.get("PV{}toLoad".format(i))
                         pv["year_one_to_grid_series_kw"] = self.results_dict.get("PV{}toGrid".format(i))
                         pv['year_one_curtailed_production_series_kw'] = self.results_dict.get("PV{}toCurtail".format(i))
+                        pv['sr_required_series_kw'] = self.results_dict.get("SRrequiredPV{}".format(i))
+                        pv['sr_provided_series_kw'] = self.results_dict.get("SRprovidedPV{}".format(i))
                         pv["year_one_power_production_series_kw"] = pv.get("year_one_to_grid_series_kw")
                         if not pv.get("year_one_to_battery_series_kw") is None:
                             if pv["year_one_power_production_series_kw"] is None:
@@ -508,6 +584,7 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
                                          np.array(pv.get("year_one_to_load_series_kw")))
                         if pv["year_one_power_production_series_kw"] is None:
                             pv["year_one_power_production_series_kw"] = []
+                        pv["total_fixed_om_cost_us_dollars"] = self.results_dict.get("PV{}_net_fixed_om_costs".format(i))
                         pv["existing_pv_om_cost_us_dollars"] = self.results_dict.get("PV{}_net_fixed_om_costs_bau".format(i))
                         pv["station_latitude"] = pv_model.station_latitude
                         pv["station_longitude"] = pv_model.station_longitude
@@ -551,6 +628,8 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
                         "year_one_to_grid_series_kw"] = self.results_dict.get("ElecFromBattExport")
                     self.nested_outputs["Scenario"]["Site"][name]["year_one_soc_series_pct"] = \
                         self.results_dict.get("year_one_soc_series_pct")
+                    self.nested_outputs["Scenario"]["Site"][name]["sr_provided_series_kw"] = \
+                        self.results_dict.get("sr_provided_batt")
                 elif name == "ElectricTariff":
                     self.nested_outputs["Scenario"]["Site"][name][
                         "year_one_energy_cost_us_dollars"] = self.results_dict.get("year_one_energy_cost")
@@ -642,6 +721,11 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
                     self.nested_outputs["Scenario"]["Site"][name]["size_kw"] = self.results_dict.get("generator_kw", 0)
                     self.nested_outputs["Scenario"]["Site"][name]["fuel_used_gal"] = self.results_dict.get(
                         "fuel_used_kwh") / GAL_DIESEL_TO_KWH
+                    if self.results_dict.get("fuel_used_kwh_series") is None:
+                        self.nested_outputs["Scenario"]["Site"][name]["fuel_used_series_gal"] = self.results_dict.get("fuel_used_kwh_series")
+                    else:
+                        self.nested_outputs["Scenario"]["Site"][name]["fuel_used_series_gal"] = [i/GAL_DIESEL_TO_KWH for i in self.results_dict.get(
+                            "fuel_used_kwh_series")] 
                     self.nested_outputs["Scenario"]["Site"][name]["fuel_used_gal_bau"] = self.results_dict.get(
                         "fuel_used_kwh_bau") / GAL_DIESEL_TO_KWH
                     self.nested_outputs["Scenario"]["Site"][name][
@@ -692,6 +776,9 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
                     self.nested_outputs["Scenario"]["Site"][name][
                         "existing_gen_year_one_fuel_cost_us_dollars"] = self.results_dict.get(
                         "gen_year_one_fuel_cost_bau")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "sr_provided_series_kw"] = self.results_dict.get(
+                        "sr_provided_gen")
                 elif name == "CHP":
                     self.nested_outputs["Scenario"]["Site"][name][
                         "size_kw"] = self.results_dict.get("chp_kw")
@@ -802,6 +889,15 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
             for k in time_outputs:
                 self.nested_outputs["Scenario"]["Profile"][k] = self.results_dict.get(k)
                 self.nested_outputs["Scenario"]["Profile"][k + "_bau"] = self.results_dict.get(k + "_bau")
+
+            lcoe_component_fuel, lcoe_component_re_capex, lcoe_component_diesel_capex, lcoe_component_other_capex, \
+            lcoe_component_om, lcoe_component_other_annual_costs = self.get_offgrid_lcoe_breakdown
+            self.nested_outputs["Scenario"]["Site"]["Financial"]["lcoe_component_fuel_us_dollars_per_kwh"] = lcoe_component_fuel
+            self.nested_outputs["Scenario"]["Site"]["Financial"]["lcoe_component_re_capex_us_dollars_per_kwh"] = lcoe_component_re_capex
+            self.nested_outputs["Scenario"]["Site"]["Financial"]["lcoe_component_diesel_capex_us_dollars_per_kwh"] = lcoe_component_diesel_capex
+            self.nested_outputs["Scenario"]["Site"]["Financial"]["lcoe_component_other_capex_us_dollars_per_kwh"] = lcoe_component_other_capex
+            self.nested_outputs["Scenario"]["Site"]["Financial"]["lcoe_component_om_us_dollars_per_kwh"] = lcoe_component_om
+            self.nested_outputs["Scenario"]["Site"]["Financial"]["lcoe_component_other_annual_costs_us_dollars_per_kwh"] = lcoe_component_other_annual_costs
 
         def compute_total_power(self, tech):
             power_lists = list()

@@ -30,7 +30,7 @@
 import numpy as np
 import pandas as pd
 from .urdb_logger import log_urdb_errors
-from .nested_inputs import nested_input_definitions, list_of_float, list_of_str, list_of_int, list_of_list, list_of_dict
+from .nested_inputs import nested_input_definitions, list_of_float, list_of_str, list_of_int, list_of_list, list_of_dict, off_grid_defaults
 #Note: list_of_float is actually needed
 import os
 import csv
@@ -443,14 +443,33 @@ class ValidateNestedInput:
         self.emission_warning = []
         self.general_warnings = []
         self.input_dict = dict()
+        self.off_grid_flag = False
         if type(input_dict) is not dict:
             self.input_data_errors.append(("POST must contain a valid JSON formatted according to format described in "
                                            "https://developer.nrel.gov/docs/energy-optimization/reopt-v1/"))
         else:        
             self.input_dict['Scenario'] = input_dict.get('Scenario') or {}
+            self.off_grid_flag = input_dict['Scenario'].get('off_grid_flag') or False
             for k,v in input_dict.items():
                 if k != 'Scenario':
                     self.invalid_inputs.append([k, ["Top Level"]])
+
+            # Replace defaults with offgrid inputs if an offgrid run is selected
+            if self.off_grid_flag:
+                for i in off_grid_defaults.keys(): # Scenario
+                    for j in off_grid_defaults[i].keys(): # Site
+                        if self.isAttribute(j):
+                            self.nested_input_definitions[i][j] = off_grid_defaults[i][j]
+                        else:
+                            for k in off_grid_defaults[i][j].keys(): 
+                                if self.isAttribute(k):
+                                    self.nested_input_definitions[i][j][k] = off_grid_defaults[i][j][k]
+                                else:
+                                    for l in off_grid_defaults[i][j][k].keys(): 
+                                        if self.isAttribute(l):
+                                            self.nested_input_definitions[i][j][k][l] = off_grid_defaults[i][j][k][l]
+                                        else:
+                                            self.input_data_errors.append('Error with offgrid default values definition.')
 
             self.check_object_types(self.input_dict)
         if self.isValid:
@@ -475,6 +494,23 @@ class ValidateNestedInput:
             self.input_dict["Scenario"]["Site"]["LoadProfile"].pop("outage_start_hour", None)
             self.input_dict["Scenario"]["Site"]["LoadProfile"].pop("outage_end_hour", None)
 
+            if self.off_grid_flag:
+                self.input_dict["Scenario"]["Site"]["LoadProfile"]["outage_start_time_step"] = 1
+                # Currently not modeling tax incentives in offgrid scenarios
+                self.input_dict["Scenario"]["Site"]["Financial"]["offtaker_tax_pct"] = 0.0
+                self.input_dict["Scenario"]["Site"]["Financial"]["owner_tax_pct"] = 0.0
+                self.input_dict["Scenario"]["Site"]["LoadProfile"]["critical_load_pct"] = 1.0
+                if self.input_dict["Scenario"]["time_steps_per_hour"] == 4:
+                    self.input_dict["Scenario"]["Site"]["LoadProfile"]["outage_end_time_step"] = 35040
+                elif self.input_dict["Scenario"]["time_steps_per_hour"] == 2:
+                    self.input_dict["Scenario"]["Site"]["LoadProfile"]["outage_end_time_step"] = 17520
+                else:
+                    self.input_dict["Scenario"]["Site"]["LoadProfile"]["outage_end_time_step"] = 8760
+            else:
+                # Sets diesel fuel escalation to the electricity escalation rate
+                # TODO: remove after diesel fuel cost escalation is exposed as an input
+                self.input_dict["Scenario"]["Site"]["Financial"]["generator_fuel_escalation_pct"] = \
+                    self.input_dict["Scenario"]["Site"]["Financial"]["escalation_pct"]
     @property
     def isValid(self):
         if self.input_data_errors or self.urdb_errors:
@@ -1931,7 +1967,10 @@ class ValidateNestedInput:
                     message = '(' + ' OR '.join(
                         [' and '.join(missing_set) for missing_set in missing_attribute_sets]) + ')'
                     if message not in all_missing_attribute_sets:
-                        all_missing_attribute_sets.append(message)
+                        if self.off_grid_flag and 'urdb' in message:
+                            pass
+                        else:
+                            all_missing_attribute_sets.append(message)
 
         if len(all_missing_attribute_sets) > 0:
             final_message = " AND ".join(all_missing_attribute_sets)

@@ -37,6 +37,7 @@ class Financial(object):
     def __init__(self,
                  om_cost_escalation_pct,
                  escalation_pct,
+                 generator_fuel_escalation_pct,
                  boiler_fuel_escalation_pct,
                  chp_fuel_escalation_pct,
                  offtaker_tax_pct,
@@ -49,6 +50,7 @@ class Financial(object):
                  ):
         self.om_cost_escalation_pct = om_cost_escalation_pct
         self.escalation_pct = escalation_pct
+        self.generator_fuel_escalation_pct = generator_fuel_escalation_pct
         self.boiler_fuel_escalation_pct = boiler_fuel_escalation_pct
         self.chp_fuel_escalation_pct = chp_fuel_escalation_pct
         self.owner_tax_pct = owner_tax_pct
@@ -57,6 +59,8 @@ class Financial(object):
         self.third_party_ownership = third_party_ownership
         self.offtaker_discount_pct = offtaker_discount_pct
         self.analysis_years = analysis_years
+        self.other_capital_costs_us_dollars = kwargs.get('other_capital_costs_us_dollars')
+        self.other_annual_costs_us_dollars_per_year = kwargs.get('other_annual_costs_us_dollars_per_year')
 
         # set-up direct ownership
         if self.third_party_ownership is False:

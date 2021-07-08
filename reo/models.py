@@ -119,6 +119,7 @@ class ScenarioModel(models.Model):
     optimality_tolerance_bau = models.FloatField(null=True, blank=True)
     optimality_tolerance_techs = models.FloatField(null=True, blank=True)
     add_soc_incentive = models.BooleanField(null=True, blank=True)
+    off_grid_flag = models.BooleanField(null=True, blank=True)
 
     lower_bound = models.FloatField(null=True, blank=True)
     optimality_gap = models.FloatField(null=True, blank=True)
@@ -157,6 +158,7 @@ class FinancialModel(models.Model):
     run_uuid = models.UUIDField(unique=True)
     analysis_years = models.IntegerField(null=True, blank=True)
     escalation_pct = models.FloatField(null=True, blank=True)
+    generator_fuel_escalation_pct = models.FloatField(null=True, blank=True)
     boiler_fuel_escalation_pct = models.FloatField(null=True, blank=True)
     chp_fuel_escalation_pct = models.FloatField(null=True, blank=True)
     om_cost_escalation_pct = models.FloatField(null=True, blank=True)
@@ -167,6 +169,8 @@ class FinancialModel(models.Model):
     third_party_ownership = models.BooleanField(null=True, blank=True)
     owner_discount_pct = models.FloatField(null=True, blank=True)
     owner_tax_pct = models.FloatField(null=True, blank=True)
+    other_capital_costs_us_dollars = models.FloatField(null=True, blank=True)
+    other_annual_costs_us_dollars_per_year = models.FloatField(null=True, blank=True)
 
     # Outputs
     lcc_us_dollars = models.FloatField(null=True, blank=True)
@@ -199,6 +203,15 @@ class FinancialModel(models.Model):
     developer_annual_free_cashflow_series_us_dollars = ArrayField(
             models.FloatField(null=True, blank=True), default=list, null=True)
     developer_om_and_replacement_present_cost_after_tax_us_dollars = models.FloatField(null=True, blank=True)
+    additional_cap_costs_us_dollars = models.FloatField(null=True, blank=True)
+    total_annual_cost_us_dollars = models.FloatField(null=True, blank=True)
+    microgrid_lcoe_us_dollars_per_kwh = models.FloatField(null=True, blank=True)
+    lcoe_component_fuel_us_dollars_per_kwh = models.FloatField(null=True, blank=True)
+    lcoe_component_re_capex_us_dollars_per_kwh = models.FloatField(null=True, blank=True)
+    lcoe_component_diesel_capex_us_dollars_per_kwh = models.FloatField(null=True, blank=True)
+    lcoe_component_other_capex_us_dollars_per_kwh = models.FloatField(null=True, blank=True)
+    lcoe_component_om_us_dollars_per_kwh = models.FloatField(null=True, blank=True)
+    lcoe_component_other_annual_costs_us_dollars_per_kwh = models.FloatField(null=True, blank=True)
 
     @classmethod
     def create(cls, **kwargs):
@@ -225,6 +238,8 @@ class LoadProfileModel(models.Model):
     outage_end_time_step = models.IntegerField(null=True, blank=True)
     critical_load_pct = models.FloatField(null=True, blank=True)
     outage_is_major_event = models.BooleanField(null=True, blank=True)
+    min_load_met_pct = models.FloatField(null=True, blank=True)
+    sr_required_pct = models.FloatField(null=True, blank=True)
 
     #Outputs
     year_one_electric_load_series_kw = ArrayField(models.FloatField(null=True, blank=True), default=list, null=True)
@@ -233,6 +248,10 @@ class LoadProfileModel(models.Model):
     sustain_hours = models.IntegerField(null=True, blank=True)
     bau_sustained_time_steps = models.IntegerField(null=True, blank=True)
     resilience_check_flag = models.BooleanField(null=True, blank=True)
+    load_met_series_kw = ArrayField(models.FloatField(blank=True), default=list, null=True)
+    sr_required_series_kw = ArrayField(models.FloatField(blank=True), default=list, null=True)
+    total_sr_required = ArrayField(models.FloatField(blank=True), default=list, null=True)
+    total_sr_provided = ArrayField(models.FloatField(blank=True), default=list, null=True)
 
     @classmethod
     def create(cls, **kwargs):
@@ -438,6 +457,7 @@ class PVModel(models.Model):
     can_wholesale = models.BooleanField(null=True, blank=True)
     can_export_beyond_site_load = models.BooleanField(null=True, blank=True)
     can_curtail = models.BooleanField(null=True, blank=True)
+    sr_required_pct = models.FloatField(null=True, blank=True)
 
     # Outputs
     size_kw = models.FloatField(null=True, blank=True)
@@ -457,11 +477,13 @@ class PVModel(models.Model):
             models.FloatField(null=True, blank=True), null=True, blank=True, default=list)
     year_one_to_grid_series_kw = ArrayField(
             models.FloatField(null=True, blank=True), null=True, blank=True, default=list)
-    existing_pv_om_cost_us_dollars = models.FloatField(null=True, blank=True)
+    total_fixed_om_cost_us_dollars = models.FloatField(null=True, blank=True)
     year_one_curtailed_production_series_kw = ArrayField(
             models.FloatField(null=True, blank=True), null=True, blank=True, default=list)
     existing_pv_om_cost_us_dollars = models.FloatField(null=True, blank=True)
     lcoe_us_dollars_per_kwh = models.FloatField(null=True, blank=True)
+    sr_required_series_kw = ArrayField(models.FloatField(blank=True), default=list, null=True)
+    sr_provided_series_kw = ArrayField(models.FloatField(blank=True), default=list, null=True)
 
     @classmethod
     def create(cls, **kwargs):
@@ -562,6 +584,7 @@ class StorageModel(models.Model):
     total_rebate_us_dollars_per_kw = models.IntegerField(null=True, blank=True)
     total_rebate_us_dollars_per_kwh = models.IntegerField(null=True, blank=True)
 
+
     # Outputs
     size_kw = models.FloatField(null=True, blank=True)
     size_kwh = models.FloatField(null=True, blank=True)
@@ -571,6 +594,7 @@ class StorageModel(models.Model):
             models.FloatField(null=True, blank=True), null=True, blank=True, default=list)
     year_one_soc_series_pct = ArrayField(
             models.FloatField(null=True, blank=True), null=True, blank=True, default=list)
+    sr_provided_series_kw = ArrayField(models.FloatField(blank=True), default=list, null=True)
 
     @classmethod
     def create(cls, **kwargs):
@@ -618,6 +642,7 @@ class GeneratorModel(models.Model):
     can_wholesale = models.BooleanField(null=True, blank=True)
     can_export_beyond_site_load = models.BooleanField(null=True, blank=True)
     can_curtail = models.BooleanField(null=True, blank=True)
+    useful_life_years = models.FloatField(null=True, blank=True)
 
     # Outputs
     fuel_used_gal = models.FloatField(null=True, blank=True)
@@ -647,7 +672,11 @@ class GeneratorModel(models.Model):
     existing_gen_total_fixed_om_cost_us_dollars = models.FloatField(null=True, blank=True)
     year_one_emissions_lb_C02 = models.FloatField(null=True, blank=True)
     year_one_emissions_bau_lb_C02 = models.FloatField(null=True, blank=True)
-
+    sr_provided_series_kw = ArrayField(
+            models.FloatField(null=True, blank=True), null=True, blank=True, default=list)
+    fuel_used_series_gal = ArrayField(
+            models.FloatField(null=True, blank=True), null=True, blank=True, default=list)
+    
     @classmethod
     def create(cls, **kwargs):
         obj = cls(**kwargs)
@@ -1009,7 +1038,7 @@ class ModelManager(object):
         else:
             if 'PV' in modelName:
                 eval(modelName).objects.filter(run_uuid=run_uuid, pv_number=number).update(**attribute_inputs(modelData))
-        
+
 
     @staticmethod
     def remove(run_uuid):
@@ -1047,7 +1076,7 @@ class ModelManager(object):
         :param model_ids: dict, optional, for use when updating existing models that have not been created in memory
         :return: None
         """
-        d = data["outputs"]["Scenario"] 
+        d = data["outputs"]["Scenario"]
         ProfileModel.objects.filter(run_uuid=run_uuid).update(**attribute_inputs(d['Profile']))
         SiteModel.objects.filter(run_uuid=run_uuid).update(**attribute_inputs(d['Site']))
         FinancialModel.objects.filter(run_uuid=run_uuid).update(**attribute_inputs(d['Site']['Financial']))
@@ -1124,7 +1153,7 @@ class ModelManager(object):
             if k in d.keys():
                 del d[k]
             return d
-        
+
         def remove_ids(d):
             del d['run_uuid']
             del d['id']
@@ -1140,7 +1169,7 @@ class ModelManager(object):
                             if type(resp['outputs']['Scenario']['Site'][site_key])==dict:
                                 resp['inputs']['Scenario']['Site'][site_key][k] = resp['outputs']['Scenario']['Site'][site_key][k]
                                 del resp['outputs']['Scenario']['Site'][site_key][k]
-                            
+
                             elif type(resp['outputs']['Scenario']['Site'][site_key])==list:
                                 max_order = max([p.get('pv_number') for p in resp['outputs']['Scenario']['Site'][site_key]])
                                 if resp['inputs']['Scenario']['Site'].get(site_key) == {}:
@@ -1153,7 +1182,7 @@ class ModelManager(object):
                                     if isinstance(resp['inputs']['Scenario']['Site'][site_key][i][k], list):
                                         if len(resp['inputs']['Scenario']['Site'][site_key][i][k]) == 1:
                                             resp['inputs']['Scenario']['Site'][site_key][i][k] = \
-                                                resp['inputs']['Scenario']['Site'][site_key][i][k][0]                                    
+                                                resp['inputs']['Scenario']['Site'][site_key][i][k][0]
                                     if k not in ['pv_name']:
                                         del resp['outputs']['Scenario']['Site'][site_key][i][k]
 
@@ -1166,7 +1195,7 @@ class ModelManager(object):
                                     resp['inputs']['Scenario']['Site'][site_key][k] = \
                                         resp['inputs']['Scenario']['Site'][site_key][k][0]
                                 elif len(resp['inputs']['Scenario']['Site'][site_key][k]) == 0:
-                                    del resp['inputs']['Scenario']['Site'][site_key][k] 
+                                    del resp['inputs']['Scenario']['Site'][site_key][k]
                             del resp['outputs']['Scenario']['Site'][site_key][k]
                     except KeyError:  # known exception for k = urdb_response (user provided blended rates)
                         resp['inputs']['Scenario']['Site'][site_key][k] = None
@@ -1202,7 +1231,7 @@ class ModelManager(object):
         resp['outputs']['Scenario'] = scenario_data
         resp['outputs']['Scenario']['run_uuid'] = str(run_uuid)
         resp['outputs']['Scenario']['Site'] = remove_ids(model_to_dict(SiteModel.objects.get(run_uuid=run_uuid)))
-        
+
         financial_record = FinancialModel.objects.filter(run_uuid=run_uuid) or {}
         if financial_record is not {}:
             resp['outputs']['Scenario']['Site']['Financial'] = remove_ids(model_to_dict(financial_record[0]))
@@ -1238,7 +1267,7 @@ class ModelManager(object):
         wind_record = WindModel.objects.filter(run_uuid=run_uuid) or {}
         if not wind_record == {}:
             resp['outputs']['Scenario']['Site']['Wind'] = remove_ids(model_to_dict(wind_record[0]))
-        
+
         chp_record = CHPModel.objects.filter(run_uuid=run_uuid) or {}
         if not chp_record == {}:
             resp['outputs']['Scenario']['Site']['CHP'] = remove_ids(model_to_dict(chp_record[0]))
@@ -1266,7 +1295,7 @@ class ModelManager(object):
         resp['outputs']['Scenario']['Site']['PV'] = []
         for x in PVModel.objects.filter(run_uuid=run_uuid).order_by('pv_number'):
             resp['outputs']['Scenario']['Site']['PV'].append(remove_ids(model_to_dict(x)))
-            
+
         profile_data = ProfileModel.objects.filter(run_uuid=run_uuid)
         if len(profile_data) > 0:
             resp['outputs']['Scenario']['Profile'] = remove_ids(model_to_dict(profile_data[0]))
@@ -1295,7 +1324,7 @@ class ModelManager(object):
 
         if resp['inputs']['Scenario']['Site']['LoadProfile'].get('doe_reference_name') == '':
             del resp['inputs']['Scenario']['Site']['LoadProfile']['doe_reference_name']
-        
+
         #Preserving Backwards Compatability
         resp['inputs']['Scenario']['Site']['LoadProfile']['outage_start_hour'] = resp['inputs']['Scenario']['Site']['LoadProfile'].get('outage_start_time_step')
         if resp['inputs']['Scenario']['Site']['LoadProfile']['outage_start_hour'] is not None:
