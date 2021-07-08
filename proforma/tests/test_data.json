@@ -36,8 +36,8 @@
       },
       "land_acres": null,
       "latitude": 34.5794343,
-      "outage_start_time_step": null,
-      "outage_end_time_step": null,
+      "outage_start_hour": null,
+      "outage_end_hour": null,
       "roof_squarefeet": null,
       "PV": {
         "existing_kw": 5,

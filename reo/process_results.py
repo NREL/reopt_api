@@ -137,8 +137,8 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
             Convenience (and legacy) class for handling REopt results
             :param results_dict: flat dict of results from reopt.jl
             :param results_dict_bau: flat dict of results from reopt.jl for bau case
-            :param dm: instance of DataManager class
-            :param inputs: dict, data['inputs']['Scenario']['Site']
+            :param instance of DataManager class
+            :param dict, data['inputs']['Scenario']['Site']
             """
             self.dm = dm
             self.inputs = inputs
@@ -753,7 +753,7 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
                     self.nested_outputs["Scenario"]["Site"][name][
                         "year_one_absorp_chl_thermal_production_tonhr"] = self.results_dict.get("year_one_absorp_chiller_thermal_prod_kwh") / TONHOUR_TO_KWHT
                     self.nested_outputs["Scenario"]["Site"][name][
-                        "year_one_absorp_chl_electric_consumption_series_kw"] = self.results_dict.get("absorption_chiller_electric_consumption_series")                
+                        "year_one_absorp_chl_electric_consumption_series_kw"] = self.results_dict.get("absorption_chiller_electric_consumption_series")
                     self.nested_outputs["Scenario"]["Site"][name][
                         "year_one_absorp_chl_electric_consumption_kwh"] = self.results_dict.get("year_one_absorp_chiller_electric_consumption_kwh")
                 elif name == "HotTES":
@@ -770,6 +770,46 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
                         "year_one_thermal_from_cold_tes_series_ton"] = [x / TONHOUR_TO_KWHT for x in self.results_dict.get("cold_tes_thermal_production_series")]
                     self.nested_outputs["Scenario"]["Site"][name][
                         "year_one_cold_tes_soc_series_pct"] = self.results_dict.get("cold_tes_pct_soc_series")
+                elif name == "RC":
+                    self.nested_outputs["Scenario"]["Site"][name]["temperatures_degree_C"] = self.results_dict.get(
+                        "indoor_temperatures")
+                    self.nested_outputs["Scenario"]["Site"][name]["comfort_penalty_degC"] = self.results_dict.get(
+                        "hvac_comfort_penalty")
+                elif name == "FlexTechAC":
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "size_kw"] = self.results_dict.get("ac_size_kw")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "year_one_power_production_series_kw"] = self.results_dict.get("ac_production_series")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "year_one_power_consumption_series_kw"] = self.results_dict.get("ac_consumption_series")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "year_one_crankcase_power_consumption_series_kw"] = self.results_dict.get("crankcase_consumption_series")
+                elif name == "FlexTechHP":
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "size_kw"] = self.results_dict.get("hp_size_kw")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "year_one_power_production_series_kw"] = self.results_dict.get("hp_production_series")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "year_one_power_consumption_series_kw"] = self.results_dict.get("hp_consumption_series")
+                elif name == "HotWaterTank":
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "year_one_temperature_series_degC"] = self.results_dict.get("water_temperatures")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "comfort_penalty_degC"] = self.results_dict.get("wh_comfort_penalty")
+                elif name == "FlexTechERWH":
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "year_one_power_production_series_kw"] = self.results_dict.get("erwh_production_series")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "year_one_power_consumption_series_kw"] = self.results_dict.get("erwh_consumption_series")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "fraction_on"] = self.results_dict.get("erwh_fraction_on")
+                elif name == "FlexTechHPWH":
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "year_one_power_production_series_kw"] = self.results_dict.get("hpwh_production_series")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "year_one_power_consumption_series_kw"] = self.results_dict.get("hpwh_consumption_series")
+                    self.nested_outputs["Scenario"]["Site"][name][
+                        "fraction_on"] = self.results_dict.get("hpwh_fraction_on")
 
             # outputs that depend on multiple object results:
             future_replacement_cost, present_replacement_cost = self.replacement_costs_future_and_present

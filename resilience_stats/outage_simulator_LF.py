@@ -153,17 +153,6 @@ def simulate_outages(batt_kwh=0, batt_kw=0, pv_kw_ac_hourly=[], init_soc=0, crit
                     "probs_of_surviving_by_hour_of_the_day": [[0] for _ in range(24)],
                     }
 
-    if chp_kw >= max(critical_loads_kw):
-        return {"resilience_by_timestep": [8760] * n_timesteps,
-                "resilience_hours_min": 8760,
-                "resilience_hours_max": 8760,
-                "resilience_hours_avg": 8760,
-                "outage_durations": list(range(1,8761)),
-                "probs_of_surviving": [1.0] * n_timesteps,
-                "probs_of_surviving_by_month": [[1.0] for _ in range(12)],
-                "probs_of_surviving_by_hour_of_the_day": [[1.0] for _ in range(24)],
-                }
-
     if pv_kw_ac_hourly in [None, []]:
         pv_kw_ac_hourly = [0] * n_timesteps
     if wind_kw_ac_hourly in [None, []]:

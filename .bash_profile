@@ -22,10 +22,6 @@ fi
 #------------------------------------------------------------------------------
 #  path to reopt_api/reo/src for SAM SDK C libraries
 SRC_DIR="${HOME}/reopt_api/reo/src"
-DYLD_LIBRARY_PATH="${SRC_DIR}:${DYLD_LIBRARY_PATH}"  # for Mac
-#LD_LIBRARY_PATH="${SRC_DIR}:${LD_LIBRARY_PATH}"  # for Linux
-export DYLD_LIBRARY_PATH  # for Mac
-# export LD_LIBRARY_PATH  # for Linux
 #==============================================================================
 
 

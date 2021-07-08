@@ -97,7 +97,6 @@ class Util(Tech):
 
         return grid_prod_factor
 
-
 class PV(Tech):
     array_type_to_tilt_angle = {
         0: 0,  # ground-mount fixed array type's tilt should be equal to the latitude
@@ -133,14 +132,14 @@ class PV(Tech):
         if self.tilt == 0.537:
             if kwargs.get('array_type') == 0:  # 0 are Ground Mount Fixed (Open Rack) arrays, we assume an optimal tilt
                 """
-                start assuming the site is in the northern hemisphere, set the tilt to the latitude and leave the 
+                start assuming the site is in the northern hemisphere, set the tilt to the latitude and leave the
                 default azimuth of 180 (unless otherwise specified)
                 """
                 self.tilt = kwargs.get('latitude')
                 if kwargs.get('latitude') < 0:
                     """
-                    if the site is in the southern hemisphere, now set the tilt to the positive latitude value and 
-                    change the azimuth to 0. Also update kwargs going forward so they get saved to the database later 
+                    if the site is in the southern hemisphere, now set the tilt to the positive latitude value and
+                    change the azimuth to 0. Also update kwargs going forward so they get saved to the database later
                     show up in final results
                     """
                     self.tilt = -1 * self.tilt
@@ -245,7 +244,7 @@ class Generator(Tech):
         """
         super class init for generator is not unique anymore as we are now allowing users to define min/max sizes;
         and include diesel generator's size as optimization decision variable.
-        
+
         Note that default burn rate, slope, and min/max sizes are handled in ValidateNestedInput.
         """
         self.fuel_slope = fuel_slope_gal_per_kwh
@@ -273,7 +272,7 @@ class Generator(Tech):
 
     @property
     def prod_factor(self):
-        gen_prod_factor = [0.0 for _ in range(8760 * self.time_steps_per_hour)]
+        gen_prod_factor = [0.0 for _ in range(8760*self.time_steps_per_hour)]
 
         if self.generator_only_runs_during_grid_outage:
             if self.outage_start_time_step is not None and self.outage_end_time_step is not None:
@@ -626,3 +625,106 @@ class AbsorptionChiller(Tech):
             absorp_chiller_cop = AbsorptionChiller.absorption_chiller_cop_defaults["hot_water"]
 
         return absorp_chiller_cop
+        
+class RC():
+
+    def __init__(self, dfm, **kwargs):
+
+        self.use_flexloads_model = kwargs.get('use_flexloads_model')
+        self.use_flexloads_model_bau = False
+        self.a_matrix = kwargs.get('a_matrix')
+        self.b_matrix = kwargs.get('b_matrix')
+        self.u_inputs = kwargs.get('u_inputs')
+        self.init_temperatures = kwargs.get('init_temperatures')
+        self.n_temp_nodes = kwargs.get('n_temp_nodes')
+        self.n_input_nodes = kwargs.get('n_input_nodes')
+        self.injection_node = kwargs.get('injection_node')
+        self.space_node = kwargs.get('space_node')
+        self.temperature_lower_bound = kwargs.get('temperature_lower_bound')
+        self.temperature_upper_bound = kwargs.get('temperature_upper_bound')
+        self.comfort_temp_lower_bound_degC = kwargs.get('comfort_temp_lower_bound_degC')
+        self.comfort_temp_upper_bound_degC = kwargs.get('comfort_temp_upper_bound_degC')
+        self.comfort_HVAC_value_usd_per_degC = kwargs.get('comfort_HVAC_value_usd_per_degC')
+        
+        dfm.add_rc(self)
+
+
+class FlexTechAC(Tech):
+
+    def __init__(self, dfm, **kwargs):
+        super(FlexTechAC, self).__init__(**kwargs)
+
+        self.reopt_class = 'AC'
+        self.existing_kw = kwargs.get('existing_kw')
+        self.prod_factor_series_kw = kwargs.get('prod_factor_series_kw')
+        self.cop = kwargs.get('cop')
+        self.shr = kwargs.get('shr')
+        self.fan_power_ratio = kwargs.get('fan_power_ratio')
+        self.dse = kwargs.get('dse')
+
+        dfm.add_flex_tech_ac(self)
+
+    @property
+    def prod_factor(self):
+        if self.prod_factor_series_kw is None:
+            print('No input AC production factors') # TODO
+        else:
+            return self.prod_factor_series_kw
+
+class FlexTechHP(Tech):
+
+    def __init__(self, dfm, **kwargs):
+        super(FlexTechHP, self).__init__(**kwargs)
+
+        self.reopt_class = 'HP'
+        self.existing_kw = kwargs.get('existing_kw')
+        self.prod_factor_series_kw = kwargs.get('prod_factor_series_kw')
+        self.cop = kwargs.get('cop')
+        self.fan_power_ratio = kwargs.get('fan_power_ratio')
+        self.dse = kwargs.get('dse')
+
+        dfm.add_flex_tech_hp(self)
+
+    @property
+    def prod_factor(self):
+        if self.prod_factor_series_kw is None:
+            print('No input HP production factors')  # TODO
+        else:
+            return self.prod_factor_series_kw
+
+class FlexTechERWH(Tech):
+
+    def __init__(self, dfm, **kwargs):
+        super(FlexTechERWH, self).__init__(**kwargs)
+
+        self.reopt_class = 'WHER'
+        self.min_kw = kwargs.get('size_kw')
+        self.max_kw = kwargs.get('size_kw')
+        dfm.add_flex_tech_erwh(self)
+
+    @property
+    def prod_factor(self):
+
+        erwh_prod_factor = [1.0 for _ in range(8760)]
+
+        return erwh_prod_factor
+
+class FlexTechHPWH(Tech):
+
+    def __init__(self, dfm, **kwargs):
+        super(FlexTechHPWH, self).__init__(**kwargs)
+
+        self.reopt_class = 'WHHP'
+        self.min_kw = kwargs.get('size_kw')
+        self.max_kw = kwargs.get('size_kw')
+        self.prod_factor_series_kw = kwargs.get('prod_factor_series_kw')
+        self.cop = kwargs.get('cop')
+
+        dfm.add_flex_tech_hpwh(self)
+
+    @property
+    def prod_factor(self):
+        if self.prod_factor_series_kw is None:
+            self.prod_factor_series_kw = [1.0 for _ in range(8760)]
+        else:
+            return self.prod_factor_series_kw

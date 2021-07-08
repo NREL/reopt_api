@@ -72,7 +72,6 @@ class RunJumpModelTask(Task):
         self.request.callback = None
         self.request.chord = None  # this seems to stop the infinite chord_unlock call
 
-
 @shared_task(base=RunJumpModelTask)
 def run_jump_model(dfm, data, bau=False):
     profiler = Profiler()

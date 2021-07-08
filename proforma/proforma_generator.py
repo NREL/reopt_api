@@ -3826,7 +3826,7 @@ def generate_proforma(scenariomodel, output_file_path):
         third_party_payment_row = current_row
 
         current_row += 1
-        hcs['A{}'.format(current_row)] = "Business as Usual Generator fuel cost ($)"
+        hcs['A{}'.format(current_row)] = "Existing Generator fuel cost ($)"
         for year in range(1, financial.analysis_years + 1):
             hcs['{}{}'.format(upper_case_letters[year + 1], current_row)] = '=-{} * (1 + {}/100)^{}'.format(
                 gen_fuel_used_cost_bau_cell, om_escalation_rate_cell, year)
@@ -3835,44 +3835,14 @@ def generate_proforma(scenariomodel, output_file_path):
         bau_gen_fuel_costs_row = current_row
         
         current_row += 1
-        hcs['A{}'.format(current_row)] = "Generator fuel cost with optimal system ($)"
+        hcs['A{}'.format(current_row)] = "Generator fuel cost ($)"
         for year in range(1, financial.analysis_years + 1):
             hcs['{}{}'.format(upper_case_letters[year + 1], current_row)] = '=-{} * (1+{}/100)^{}'.format(
                 diesel_fuel_used_cost_cell, om_escalation_rate_cell, year)
         make_attribute_row(hcs, current_row, length=financial.analysis_years + 2, alignment=right_align,
                            number_format='#,##0', border=no_border)
         gen_fuel_costs_row = current_row
-        
-        current_row += 1
-        hcs['A{}'.format(current_row)] = "Business as Usual Free Cash Flow"
-        for year in range(1, financial.analysis_years + 1):
-            hcs['{}{}'.format(upper_case_letters[year+1], current_row)] = (
-                "={bau_bill} + {bau_export_credit} + {bau_gen_fuel}"
-                ).format(
-                bau_bill="{}{}".format(upper_case_letters[year+1], bau_bill_row),
-                bau_export_credit="{}{}".format(upper_case_letters[year+1], bau_export_credit_row),
-                bau_gen_fuel="{}{}".format(upper_case_letters[year+1], bau_gen_fuel_costs_row)
-            )
-        make_attribute_row(hcs, current_row, length=financial.analysis_years + 2, alignment=right_align,
-                           number_format='#,##0', border=no_border)
-        fill_border(hcs, range(financial.analysis_years + 2), current_row, border_top_and_bottom)
-        
-        current_row += 1
-        hcs['A{}'.format(current_row)] = "Optimal Case Free Cash Flow"
-        for year in range(1, financial.analysis_years + 1):
-            hcs['{}{}'.format(upper_case_letters[year+1], current_row)] = (
-                "={with_sys_bill} + {export_credits} + {third_party_payment} + {gen_fuel}"
-                ).format(
-                with_sys_bill="{}{}".format(upper_case_letters[year+1], bill_with_sys_row),
-                export_credits="{}{}".format(upper_case_letters[year+1], export_credits_row),
-                third_party_payment="{}{}".format(upper_case_letters[year+1], third_party_payment_row),
-                gen_fuel="{}{}".format(upper_case_letters[year+1], gen_fuel_costs_row)
-            )
-        make_attribute_row(hcs, current_row, length=financial.analysis_years + 2, alignment=right_align,
-                           number_format='#,##0', border=no_border)
-        fill_border(hcs, range(financial.analysis_years + 2), current_row, border_top_and_bottom)
-        
-        
+
         current_row += 1
         hcs['A{}'.format(current_row)] = "Net Energy Costs"
         for year in range(1, financial.analysis_years + 1):
@@ -4121,14 +4091,9 @@ def generate_proforma(scenariomodel, output_file_path):
     ws['E{}'.format(current_row)] = "=-{}".format(optimal_LCC_cell)
     make_attribute_row(ws, current_row, length=2, offset=3, number_format="#,##0")
     fill_cols(ws, range(4, 5), current_row, calculated_fill)
-    if financial.third_party_ownership:
-        ws['F{}'.format(current_row)] = (
-        'NOTE: A negative Net Present Cost can occur if incentives are greater than costs.'
-        )
-    else:
-        ws['F{}'.format(current_row)] = (
+    ws['F{}'.format(current_row)] = (
         'NOTE: A negative LCC indicates a profit (for example when production based incentives are greater than costs.'
-        )
+    )
 
     current_row += 1
     if not financial.third_party_ownership:

@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 `reo`,`proforma`,`resilience_stats`,`*.jl`,`REopt_Lite_API`
 
 Classify the change according to the following categories:
-    
+
     ### Major Updates
     ### Minor Updates
     ##### Added
@@ -82,7 +82,7 @@ Classify the change according to the following categories:
 ## Added
 - `reo`/`reopt.jl`: Coincident peak rates and expected time steps can be specified. There can be a single rate and list of time steps. Or there can be multiple CP periods in a year with different rates, and then a set of time steps is specified for each rate. Peak demand occurring during each set of CP time steps is charged at the corresponding CP rate.
 
-- `reo`: Add a new **ElectricTariff** inputs and outputs: 
+- `reo`: Add a new **ElectricTariff** inputs and outputs:
  - **coincident_peak_load_active_timesteps**
  - **coincident_peak_load_charge_us_dollars_per_kw**
  - **year_one_coincident_peak_cost_us_dollars**
@@ -115,7 +115,7 @@ Classify the change according to the following categories:
     - Storage model representing a chilled water thermal energy storage tank. It can store cold thermal energy produced by **ElectricChiller** or **AbsorptionChiller**.
 - `reo`: Changed `/simulated_load` endpoint to add optional **load_type** query param for **cooling** and **heating**
     - Use **load_type** = "heating" with **annual_mmbtu** or **monthly_mmbtu** for heating load
-    - Use **load_type** = "cooling" with **annual_tonhour** or **monthly_tonhour** for cooling load 
+    - Use **load_type** = "cooling" with **annual_tonhour** or **monthly_tonhour** for cooling load
 - `reo`: New endpoint `/chp_defaults`
     - Endpoint for the default **prime_mover**, **size_class**, and default cost and performance parameters for **CHP**
 - `reo`: New endpoint `/loadprofile_chillerthermal_chiller_cop`
@@ -162,11 +162,11 @@ Classify the change according to the following categories:
 - `reo`: Add new Financial outputs :
      - **developer_annual_free_cashflow_series_us_dollars**
      - **offtaker_annual_free_cashflow_series_bau_us_dollars**
-     - **offtaker_annual_free_cashflow_series_us_dollars** 
+     - **offtaker_annual_free_cashflow_series_us_dollars**
      - **offtaker_discounted_annual_free_cashflow_series_bau_us_dollars**
      - **offtaker_discounted_annual_free_cashflow_series_us_dollars**
 - `reo`: New capability to model a rolling lookback if URDB lookbackRange is non-zero
-- `reo`: Add a new third-party financing output: 
+- `reo`: Add a new third-party financing output:
      - **net_present_cost_us_dollars**
 - `reo`: New Wind curtailment output
      - **year_one_curtailed_production_series_kw**
@@ -191,21 +191,21 @@ Classify the change according to the following categories:
      - **doe_reference_name** (now a str or lis of str)
 - `reo`: Add PV curtailment output:
      - **year_one_curtailed_production_series_kw**
-- `proforma`:  Two proforma templates, now with 3 tabs instead of 2. 
+- `proforma`:  Two proforma templates, now with 3 tabs instead of 2.
      [1] one party: separate optimal and BAU cash flows
-     [2] two party: separate developer and host cash flows (showing capital recovery factor and developer IRR ). 
+     [2] two party: separate developer and host cash flows (showing capital recovery factor and developer IRR ).
 - `reo`: New output for year 1 existing PV production
      - **average_yearly_energy_produced_bau_kwh**
 - `reo`: Add inputs to ElectricTariff to handle custom TOU energy rates (1-hr or 15-min resolutions):
 	- **add_tou_energy_rates_to_urdb_rate**
-	- **tou_energy_rates_us_dollars_per_kwh** 
+	- **tou_energy_rates_us_dollars_per_kwh**
 - `reo`: Handle multiple PV systems by including a list of PV dictionaries instead of a single dictionary. New PV inputs include:
     - **pv_name**
-	- **pv_number** 
+	- **pv_number**
 	- **location**
-- `reo`: New custom production factor inputs for PV and Wind: 
+- `reo`: New custom production factor inputs for PV and Wind:
      - **prod_factor_series_kw**
-- `reo`: Three new **Financial** outputs: 
+- `reo`: Three new **Financial** outputs:
      - **initial_capital_costs**
      - **initial_capital_costs_after_incentives**
      - **replacement_costs**
@@ -227,7 +227,7 @@ Classify the change according to the following categories:
 - `reo`: In non-third party cases the owner tax and discount percents were not saved to the database resulting in inaccurate after-incentive cost calculations in the web UI
 - `*.jl`: **Wind** dispatch fixes in julia code - including hooking up missing outputs
 - `*.jl`: Load balances constraints fixed in julia code
-- `proforma`: Addressed bugs, including: 
+- `proforma`: Addressed bugs, including:
     - Removed energy generation values from cash flow sheets
 	- Added **Generator** fixed O&M cost outputs (was not accounted for in proforma)
 	- Upfront capex was wrong with existing kw and no optimal kw
@@ -236,7 +236,7 @@ Classify the change according to the following categories:
 	- O&M costs were double accounted, once with tax benefit, once without
 	- Total installed costs was calculated incorrectly
 	- **Wind** and **Storage** bonus fraction cell references were switched with each other in proforma_generator
-	- Corrected **PV** PBI calcultion using new existing PV production output 
+	- Corrected **PV** PBI calcultion using new existing PV production output
 
 ##### Deprecated
 ##### Removed
@@ -282,7 +282,7 @@ Classify the change according to the following categories:
 - `reo`: More informative PVWatts error when site it too far away
 - `reo`/`resilience_stats`: Fix bug where `simulated_load` endpoint was not handling `monthly_totals_kwh`
 - `reo`: Fix bug where **Wind** was not constrained based on `land_acres`
-- `resilience_stats`: Fix resilience stastics bugs including: 
+- `resilience_stats`: Fix resilience stastics bugs including:
     - mis-scaling the existing **PV** production
     - `resilience_stats` was returning 8759 hours survived when critical load was met for entire year
     - `resilience_stats` battery model was assuming that inverter was DC capacity, but inverter is AC capacity
@@ -292,3 +292,5 @@ Classify the change according to the following categories:
 ## v1.0.0 - 2020-02-28
 ### Major
 - First release of the REopt API
+- Setting version number to 0.1.0 (and not 1.0.0) to reflect the fact that this version of the REopt API has not been used in a production environment
+  - The primary difference between the production version of the REopt API and the open-source version is that the production version uses a Mosel model (FICO Xpress modeling language) and the open-source version using a Julia JuMP model (to allow compatibility with more solvers)

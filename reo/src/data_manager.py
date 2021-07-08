@@ -73,6 +73,12 @@ class DataManager:
         self.load = None
         self.heating_load = None
         self.cooling_load = None
+        self.rc = None
+        self.ac = None
+        self.hp = None
+        self.hot_water_tank = None
+        self.wher = None
+        self.whhp = None
         self.reopt_inputs = None
         self.reopt_inputs_bau = None
         self.add_soc_incentive = None
@@ -86,9 +92,9 @@ class DataManager:
         self.year_one_demand_cost_series_us_dollars_per_kw = []
 
         self.available_techs = ['pv1', 'pv1nm', 'wind', 'windnm', 'generator', 'chp', 'boiler',
-                                'elecchl', 'absorpchl']  # order is critical for REopt! Note these are passed to reopt.jl as uppercase
+                                'elecchl', 'absorpchl', 'ac', 'hp', 'wher', 'whhp']  # order is critical for REopt! Note these are passed to reopt.jl as uppercase
         self.available_tech_classes = ['PV1', 'WIND', 'GENERATOR', 'CHP', 'BOILER',
-                                       'ELECCHL', 'ABSORPCHL']  # this is a REopt 'class', not a python class
+                                       'ELECCHL', 'ABSORPCHL', 'AC', 'HP', 'WHER', 'WHHP']  # this is a REopt 'class', not a python class
         self.bau_techs = []
         self.NMILRegime = ['BelowNM', 'NMtoIL', 'AboveIL']
         self.fuel_burning_techs = ['GENERATOR', 'CHP']
@@ -126,6 +132,39 @@ class DataManager:
         self.elecchl = electric_chiller
         self.elecchl_cop = electric_chiller.chiller_cop
         self.bau_techs.append('elecchl')
+
+    def add_rc(self, rc):
+        self.rc = rc
+
+    def add_flex_tech_ac(self, flex_tech_ac):
+        self.ac = flex_tech_ac
+        if self.ac.existing_kw > 0:
+            self.rc.use_flexloads_model_bau = True
+            # self.ac.use_crankcase_bau = self.ac.use_crankcase
+            if 'ac' not in self.bau_techs:
+                self.bau_techs.append('ac')
+            if 'hp' not in self.bau_techs:
+                self.bau_techs.append('hp')
+
+    def add_flex_tech_hp(self, flex_tech_hp):
+        self.hp = flex_tech_hp
+        if self.hp.existing_kw > 0:
+            self.rc.use_flexloads_model_bau = True
+            if 'hp' not in self.bau_techs:
+                self.bau_techs.append('hp')
+            if 'ac' not in self.bau_techs:
+                self.bau_techs.append('ac')
+
+    def add_hot_water_tank(self, hot_water_tank):
+        self.hot_water_tank = hot_water_tank
+
+    def add_flex_tech_erwh(self, flex_tech_erwh):
+        self.wher = flex_tech_erwh
+        self.bau_techs.append('wher')
+
+    def add_flex_tech_hpwh(self, flex_tech_hpwh):
+        self.whhp = flex_tech_hpwh
+        self.bau_techs.append('whhp')
 
     def add_pv(self, pv):
         junk = pv.prod_factor  # avoids redundant PVWatts call for pvnm
@@ -258,7 +297,7 @@ class DataManager:
 
             if eval('self.' + tech) is not None:
 
-                if tech not in ['generator', 'boiler', 'elecchl', 'absorpchl']:
+                if tech not in ['generator', 'boiler', 'elecchl', 'absorpchl', 'ac', 'hp', 'wher', 'whhp']:
 
                     # prod incentives don't need escalation
                     if tech.startswith("pv"):  # PV has degradation
@@ -314,7 +353,7 @@ class DataManager:
                 for region in regions[:-1]:
                     tech_incentives[region] = dict()
 
-                    if tech not in ['generator', 'absorpchl']:
+                    if tech not in ['generator', 'absorpchl', 'ac', 'hp', 'wher', 'whhp']:
 
                         if region == 'federal' or region == 'total':
                             tech_incentives[region]['%'] = eval('self.' + tech + '.incentives.' + region + '.itc')
@@ -525,46 +564,47 @@ class DataManager:
                 updated_cap_cost_slope = list()
                 updated_y_intercept = list()
 
-                for s in range(n_segments):
+                if tech not in ['ac', 'hp', 'wher', 'whhp']:
+                    for s in range(n_segments):
 
-                    if cost_curve_bp_x[s + 1] > 0:
-                        # Remove federal incentives for ITC basis and tax benefit calculations
-                        itc = eval('self.' + tech + '.incentives.federal.itc')
-                        rebate_federal = eval('self.' + tech + '.incentives.federal.rebate')
-                        if itc is None or rebate_federal is None:
-                            itc = 0.0
-                            rebate_federal = 0.0
-                        if itc == 1:
-                            itc_unit_basis = 0
+                        if cost_curve_bp_x[s + 1] > 0:
+                            # Remove federal incentives for ITC basis and tax benefit calculations
+                            itc = eval('self.' + tech + '.incentives.federal.itc')
+                            rebate_federal = eval('self.' + tech + '.incentives.federal.rebate')
+                            if itc is None or rebate_federal is None:
+                                itc = 0.0
+                                rebate_federal = 0.0
+                            if itc == 1:
+                                itc_unit_basis = 0
+                            else:
+                                itc_unit_basis = (tmp_cap_cost_slope[s] + rebate_federal) / (1 - itc)
                         else:
-                            itc_unit_basis = (tmp_cap_cost_slope[s] + rebate_federal) / (1 - itc)
-                    else:
-                        # Not sure how else to handle this case, perhaps there is a better way to handle it?
-                        raise Exception('Invalid cost curve for {}. Value at index {} ({}) cannot be less than or equal to 0'.format(tech, s, cost_curve_bp_x[s + 1]))
+                            # Not sure how else to handle this case, perhaps there is a better way to handle it?
+                            raise Exception('Invalid cost curve for {}. Value at index {} ({}) cannot be less than or equal to 0'.format(tech, s, cost_curve_bp_x[s + 1]))
 
-                    sf = self.site.financial
-                    updated_slope = setup_capital_cost_incentive(
-                        itc_basis=itc_unit_basis,  # input tech cost with incentives, but no ITC
-                        replacement_cost=0,
-                        replacement_year=sf.analysis_years,
-                        discount_rate=sf.owner_discount_pct,
-                        tax_rate=sf.owner_tax_pct,
-                        itc=itc,
-                        macrs_schedule=eval('self.' + tech + '.incentives.macrs_schedule'),
-                        macrs_bonus_pct=eval('self.' + tech + '.incentives.macrs_bonus_pct'),
-                        macrs_itc_reduction=eval('self.' + tech + '.incentives.macrs_itc_reduction')
-                    )
-                    # The way REopt incentives currently work, the federal rebate is the only incentive that doesn't reduce ITC basis
-                    updated_slope -= rebate_federal
-                    updated_cap_cost_slope.append(updated_slope)
+                        sf = self.site.financial
+                        updated_slope = setup_capital_cost_incentive(
+                            itc_basis=itc_unit_basis,  # input tech cost with incentives, but no ITC
+                            replacement_cost=0,
+                            replacement_year=sf.analysis_years,
+                            discount_rate=sf.owner_discount_pct,
+                            tax_rate=sf.owner_tax_pct,
+                            itc=itc,
+                            macrs_schedule=eval('self.' + tech + '.incentives.macrs_schedule'),
+                            macrs_bonus_pct=eval('self.' + tech + '.incentives.macrs_bonus_pct'),
+                            macrs_itc_reduction=eval('self.' + tech + '.incentives.macrs_itc_reduction')
+                        )
+                        # The way REopt incentives currently work, the federal rebate is the only incentive that doesn't reduce ITC basis
+                        updated_slope -= rebate_federal
+                        updated_cap_cost_slope.append(updated_slope)
 
-                for p in range(1, n_segments + 1):
-                    cost_curve_bp_y[p] = cost_curve_bp_y[p - 1] + updated_cap_cost_slope[p - 1] * \
-                                                                  (cost_curve_bp_x[p] - cost_curve_bp_x[p - 1])
-                    updated_y_intercept.append(cost_curve_bp_y[p] - updated_cap_cost_slope[p - 1] * cost_curve_bp_x[p])
+                    for p in range(1, n_segments + 1):
+                        cost_curve_bp_y[p] = cost_curve_bp_y[p - 1] + updated_cap_cost_slope[p - 1] * \
+                                                                    (cost_curve_bp_x[p] - cost_curve_bp_x[p - 1])
+                        updated_y_intercept.append(cost_curve_bp_y[p] - updated_cap_cost_slope[p - 1] * cost_curve_bp_x[p])
 
-                tmp_cap_cost_slope = updated_cap_cost_slope
-                tmp_cap_cost_yint = updated_y_intercept
+                    tmp_cap_cost_slope = updated_cap_cost_slope
+                    tmp_cap_cost_yint = updated_y_intercept
 
                 """
                 Adjust first cost curve segment to account for existing_kw.
@@ -991,6 +1031,63 @@ class DataManager:
             storage_min_power, storage_max_power, storage_min_energy, \
             storage_max_energy, storage_decay_rate
 
+    def _get_FlexTechsCOP(self, techs):
+
+        cop = list()
+        max_elec_penalty = list()
+
+        for tech in techs:
+            single_tech_op = list()
+            if eval('self.' + tech) is not None:
+                if tech in ['wher']:
+                    cop.extend([1.0] * self.n_timesteps)
+                    single_tech_op.extend([1.0] * self.n_timesteps)
+                elif tech in ['ac', 'hp', 'whhp']:
+                    for val in eval('self.' + tech + '.cop'):
+                        cop.append(float(val))
+                        single_tech_op.append((1/float(val))*100)
+                else:
+                    pass
+                if len(single_tech_op)>0:
+                    max_elec_penalty.append(single_tech_op)
+
+        if len([sum(i) for i in zip(*max_elec_penalty)]) > 0:
+            max_elec_penalty = [sum(i)*100 for i in zip(*max_elec_penalty)]
+        else:
+            max_elec_penalty = [0.0] * self.n_timesteps
+        return cop, max_elec_penalty
+
+    def _get_RC_inputs(self, use_flexloads_model):
+
+        if use_flexloads_model:
+            return self.rc.a_matrix, self.rc.b_matrix, self.rc.u_inputs, self.rc.n_temp_nodes, self.rc.n_input_nodes
+        else:
+            return [0.0], [0.0], [0.0]*self.n_timesteps, 1, 1
+
+    def _get_HVAC_inputs(self):
+        shr = [] if self.ac is None else self.ac.shr
+        dse = []
+        fan_power_ratio = []
+        techs = ['ac', 'hp']
+        for tech in techs:
+            if eval('self.' + tech) is not None:
+                dse.append(float(eval('self.' + tech + '.dse')))
+                fan_power_ratio.append(float(eval('self.' + tech + '.fan_power_ratio')))
+            else:
+                dse.append(1.0)
+                fan_power_ratio.append(0.0)
+
+        return shr, dse, fan_power_ratio
+
+    def _get_WH_inputs(self):
+        if self.wher == None and self.whhp == None:
+            return False, [0.0], [0.0], [0.0] * self.n_timesteps, [0.0], 1, 1, 1, 1, 0.0, 0.0, 0.0, 0.0
+        else:
+            return True, self.hot_water_tank.a_matrix, self.hot_water_tank.b_matrix, self.hot_water_tank.u_inputs, self.hot_water_tank.init_temperatures_degC, \
+                   self.hot_water_tank.n_temp_nodes, self.hot_water_tank.n_input_nodes, self.hot_water_tank.injection_node, self.hot_water_tank.water_node, \
+                   self.hot_water_tank.temperature_lower_bound_degC, self.hot_water_tank.temperature_upper_bound_degC, self.hot_water_tank.comfort_temp_limit_degC, \
+                   self.hot_water_tank.comfort_WH_value_usd_per_degC
+
     def _get_export_curtailment_params(self, techs, export_rates, net_metering_limit_kw):
         """
         :param techs: list of string
@@ -1082,6 +1179,19 @@ class DataManager:
 
         tech_class_min_size, techs_in_class = self._get_REopt_tech_classes(self.available_techs, False)
         tech_class_min_size_bau, techs_in_class_bau = self._get_REopt_tech_classes(self.bau_techs, True)
+
+        flex_techs_cop, max_elec_penalty = self._get_FlexTechsCOP(self.available_techs)
+        flex_techs_cop_bau, max_elec_penalty_bau = self._get_FlexTechsCOP(self.bau_techs)
+
+        a_matrix, b_matrix, u_inputs, n_temp_nodes, n_input_nodes = self._get_RC_inputs(self.rc.use_flexloads_model)
+        a_matrix_bau, b_matrix_bau, u_inputs_bau, n_temp_nodes_bau, n_input_nodes_bau = self._get_RC_inputs(
+            self.rc.use_flexloads_model_bau)
+
+        shr, dse, fan_power_ratio = self._get_HVAC_inputs()
+
+        use_wh_model, a_matrix_wh, b_matrix_wh, u_inputs_wh, init_temperatures_degC_wh, n_temp_nodes_wh, n_input_nodes_wh, \
+        injection_node_wh, water_node, temperature_lower_bound_degC, temperature_upper_bound_degC, comfort_temp_limit_degC, \
+        comfort_WH_value_usd_per_degC = self._get_WH_inputs()
 
         tech_to_location, derate, om_cost_us_dollars_per_kw, \
             om_cost_us_dollars_per_kwh, om_cost_us_dollars_per_hr_per_kw_rated, production_factor, \
@@ -1186,6 +1296,12 @@ class DataManager:
         electric_techs = [t for t in reopt_techs if t.startswith("PV") or t.startswith("WIND") or t.startswith("GENERATOR") or t.startswith("CHP")]
         electric_techs_bau = [t for t in reopt_techs_bau if t.startswith("PV") or t.startswith("WIND") or t.startswith("GENERATOR") or t.startswith("CHP")]
 
+        flex_techs = [t for t in reopt_techs if t.startswith("AC") or t.startswith("HP") or t.startswith("WHER") or t.startswith("WHHP")]
+        flex_techs_bau = [t for t in reopt_techs_bau if t.startswith("AC") or t.startswith("HP") or t.startswith("WHER") or t.startswith("WHHP")]
+
+        wh_techs = [t for t in reopt_techs if t.startswith("WHER") or t.startswith("WHHP")]
+        wh_techs_bau = [t for t in reopt_techs_bau if t.startswith("WHER") or t.startswith("WHHP")]
+
         time_steps_with_grid, time_steps_without_grid = self._get_time_steps_with_grid()
 
         rates_by_tech, techs_by_export_tier, export_tiers, techs_cannot_curtail, export_rates = \
@@ -1239,7 +1355,7 @@ class DataManager:
 
         boiler_efficiency = self.boiler.boiler_efficiency if self.boiler != None else 1.0
         elec_chiller_cop = self.elecchl.chiller_cop if self.elecchl != None else 1.0
-        
+
         if self.chp is not None:
             cooling_thermal_factor = self.chp.cooling_thermal_factor
         else:
@@ -1263,7 +1379,6 @@ class DataManager:
             = fuel_params._get_chp_unique_params(chp_techs, chp=eval('self.chp'))
         chp_fuel_burn_intercept_bau, chp_thermal_prod_slope_bau, chp_thermal_prod_intercept_bau, chp_derate_bau \
             = fuel_params._get_chp_unique_params(chp_techs_bau, chp=eval('self.chp'))
-
 
         self.reopt_inputs = {
             'Tech': reopt_techs,
@@ -1387,11 +1502,48 @@ class DataManager:
             'CHPDoesNotReduceDemandCharges': tariff_args.chp_does_not_reduce_demand_charges,
             'CHPStandbyCharge': tariff_args.chp_standby_rate_us_dollars_per_kw_per_month,
             'StorageDecayRate': storage_decay_rate,
-            'AddSOCIncentive': self.add_soc_incentive
+            'AddSOCIncentive': self.add_soc_incentive,
+            # Flex loads
+            'FlexTechs': flex_techs,
+            'HVACTechs': ["AC", "HP"],
+            'UseFlexLoadsModel': self.rc.use_flexloads_model,
+            'AMatrix': a_matrix,
+            'BMatrix': b_matrix,
+            'UInputs': u_inputs,
+            'SHR': shr,
+            'InitTemperatures': self.rc.init_temperatures,
+            'TempNodesCount': n_temp_nodes,
+            'InputNodesCount': n_input_nodes,
+            'InjectionNode': self.rc.injection_node,
+            'SpaceNode': self.rc.space_node,
+            'TempLowerBound': self.rc.temperature_lower_bound,
+            'TempUpperBound': self.rc.temperature_upper_bound,
+            'ComfortTempLimitHP': self.rc.comfort_temp_lower_bound_degC,
+            'ComfortTempLimitAC': self.rc.comfort_temp_upper_bound_degC,
+            'HVACComfortValue': self.rc.comfort_HVAC_value_usd_per_degC,
+            'FlexTechsCOP': flex_techs_cop,
+            'DSE': dse,
+            'FanPowerRatio': fan_power_ratio,
+            'MaxElecPenalty': max_elec_penalty,
+            # Water heater
+            'UseWaterHeaterModel': use_wh_model,
+            'AMatrixWH': a_matrix_wh,
+            'BMatrixWH': b_matrix_wh,
+            'UInputsWH': u_inputs_wh,
+            'InitTemperaturesWH': init_temperatures_degC_wh,
+            'TempNodesCountWH': n_temp_nodes_wh,
+            'InputNodesCountWH': n_input_nodes_wh,
+            'InjectionNodeWH': injection_node_wh,
+            'WaterNode': water_node,
+            'TempLowerBoundWH': temperature_lower_bound_degC,
+            'TempUpperBoundWH': temperature_upper_bound_degC,
+            'ComfortTempLimitWH': comfort_temp_limit_degC,
+            'WHComfortValue': comfort_WH_value_usd_per_degC,
+            'WaterHeaterTechs': wh_techs
             }
         ## Uncomment the following and run a scenario to get an updated modelinputs.json for creating Julia system image
         # import json
-        # json.dump(self.reopt_inputs, open("modelinputs.json", "w"))
+        # json.dump(test_xl, open("C:/Users/xli1/Documents/PROJECTS/_FY21/Nova/debug/modelinputs_f2.json", "w"))
 
         self.reopt_inputs_bau = {
             'Tech': reopt_techs_bau,
@@ -1515,5 +1667,42 @@ class DataManager:
             'CHPDoesNotReduceDemandCharges': tariff_args.chp_does_not_reduce_demand_charges,
             'CHPStandbyCharge': tariff_args.chp_standby_rate_us_dollars_per_kw_per_month,
             'StorageDecayRate': storage_decay_rate,
-            'AddSOCIncentive': self.add_soc_incentive
+            'AddSOCIncentive': self.add_soc_incentive,
+            # Flex loads
+            'FlexTechs': flex_techs_bau,
+            'HVACTechs': ["AC", "HP"],
+            'UseFlexLoadsModel': self.rc.use_flexloads_model_bau,
+            'AMatrix': a_matrix_bau,
+            'BMatrix': b_matrix_bau,
+            'UInputs': u_inputs_bau,
+            'SHR': shr,
+            'InitTemperatures': self.rc.init_temperatures,
+            'TempNodesCount': n_temp_nodes_bau,
+            'InputNodesCount': n_input_nodes_bau,
+            'InjectionNode': self.rc.injection_node,
+            'SpaceNode': self.rc.space_node,
+            'TempLowerBound': self.rc.temperature_lower_bound,
+            'TempUpperBound': self.rc.temperature_upper_bound,
+            'ComfortTempLimitHP': self.rc.comfort_temp_lower_bound_degC,
+            'ComfortTempLimitAC': self.rc.comfort_temp_upper_bound_degC,
+            'HVACComfortValue': self.rc.comfort_HVAC_value_usd_per_degC,
+            'FlexTechsCOP': flex_techs_cop_bau,
+            'DSE': dse,
+            'FanPowerRatio': fan_power_ratio,
+            'MaxElecPenalty': max_elec_penalty_bau,
+            # Water heater
+            'UseWaterHeaterModel': use_wh_model,
+            'AMatrixWH': a_matrix_wh,
+            'BMatrixWH': b_matrix_wh,
+            'UInputsWH': u_inputs_wh,
+            'InitTemperaturesWH': init_temperatures_degC_wh,
+            'TempNodesCountWH': n_temp_nodes_wh,
+            'InputNodesCountWH': n_input_nodes_wh,
+            'InjectionNodeWH': injection_node_wh,
+            'WaterNode': water_node,
+            'TempLowerBoundWH': temperature_lower_bound_degC,
+            'TempUpperBoundWH': temperature_upper_bound_degC,
+            'ComfortTempLimitWH': comfort_temp_limit_degC,
+            'WHComfortValue': comfort_WH_value_usd_per_degC,
+            'WaterHeaterTechs': wh_techs_bau
         }

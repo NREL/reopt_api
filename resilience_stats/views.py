@@ -40,7 +40,7 @@ from reo.utilities import annuity
 from resilience_stats.models import ResilienceModel
 from resilience_stats.outage_simulator_LF import simulate_outages
 import numpy as np
-from reo.utilities import empty_record
+
 
 
 def resilience_stats(request: Union[Dict, HttpRequest], run_uuid=None):
@@ -224,13 +224,13 @@ def financial_check(request, run_uuid=None):
 
 
 def run_outage_sim(run_uuid, with_tech=True, bau=False):
-    load_profile = LoadProfileModel.objects.filter(run_uuid=run_uuid).first() or empty_record()
-    gen = GeneratorModel.objects.filter(run_uuid=run_uuid).first() or empty_record()
-    batt = StorageModel.objects.filter(run_uuid=run_uuid).first() or empty_record()
+    load_profile = LoadProfileModel.objects.filter(run_uuid=run_uuid).first()
+    gen = GeneratorModel.objects.filter(run_uuid=run_uuid).first()
+    batt = StorageModel.objects.filter(run_uuid=run_uuid).first()
     pvs = PVModel.objects.filter(run_uuid=run_uuid)
-    financial = FinancialModel.objects.filter(run_uuid=run_uuid).first() or empty_record()
-    wind = WindModel.objects.filter(run_uuid=run_uuid).first() or empty_record()
-    chp = CHPModel.objects.filter(run_uuid=run_uuid).first() or empty_record()
+    financial = FinancialModel.objects.filter(run_uuid=run_uuid).first()
+    wind = WindModel.objects.filter(run_uuid=run_uuid).first()
+    chp = CHPModel.objects.filter(run_uuid=run_uuid).first()
 
     batt_roundtrip_efficiency = batt.internal_efficiency_pct \
                                 * batt.inverter_efficiency_pct \

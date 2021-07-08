@@ -86,7 +86,7 @@ Base.@kwdef struct Parameter
 	 TimeStepRatchetsMonth::Array{Array{Int64,1},1}   #  H_m: Time steps in month m
 	 TimeStepRatchets::Array{Array{Int64,1},1}   #  H_r: Time steps in ratchet r
      TimeStepsWithGrid::Array{Int64,1}  # H_g: Time steps with grid connection
-     TimeStepsWithoutGrid::Array{Int64,1}	 # H \setminus H_g: Time steps without grid connection 
+     TimeStepsWithoutGrid::Array{Int64,1}	 # H \setminus H_g: Time steps without grid connection
 	 DemandLookbackMonths::Array{Any,1}   # M^{lb}: fixed Look back months considered for peak pricing
 	 DemandLookbackRange::Int   # number of Look back months considered for peak pricing
 	 SegByTechSubdivision::AxisArray # S_{kt}: System size segments from segmentation k applied to technology t
@@ -97,13 +97,13 @@ Base.@kwdef struct Parameter
 	 FuelBurningTechs::Array{String,1}  # T^{f} \subset T: Fuel-burning technologies
 	 TechsNoTurndown::Array{String,1}  # T^{ac} \subset T: Technologies that cannot turn down, i.e., PV and wind
      CoincidentPeakLoadTimeSteps::AxisArray # H^{cp}_m: Coincident peak time steps in month m
-     
+
 	 ###  Parameters and Tables supporting Indexed Sets ###
 	 TechToNMILMapping::AxisArray  # Defines set T_v: Technologies that may be access net-metering regime v
 
 	 ###  Scaling Parameters ###
 	 TimeStepScaling::Float64  # \Delta: Time step scaling [h], eg. 30 minute resolution -> TimeStepScaling = 0.5
-	 
+
 	 ###  Parameters for Costs and their Functional Forms ###
      AnnualMinCharge::Float64    # c^{amc}: Utility annual minimum charge
      MonthlyMinCharge::Float64    # c^{mmc}: Utility monthly minimum charge  (not in math; will use this in min charge calculation)
@@ -122,14 +122,14 @@ Base.@kwdef struct Parameter
 	 DemandRates::Array{Float64, 2}  # c^{r}_{re}: Cost per unit peak demand in tier e during ratchet r
 	 DemandRatesMonth::Array{Float64, 2}   # c^{rm}_{mn}: Cost per unit peak demand in tier n during month m
      CoincidentPeakRates::AxisArray   # c^{cp}_p: Cost per unit peak demand during coincident peak hours of CP period p
-     
+
 	 ###  Demand Parameters ###
 	 ElecLoad::Array{Float64,1}  # \delta^{d}_{h}: Electrical load in time step h   [kW]
      DemandLookbackPercent::Float64    # \delta^{lp}: Demand Lookback proportion [fraction]
      MaxDemandInTier::Array{Float64,1}  # \delta^{t}_{e}: Maximum power demand in ratchet e
      MaxDemandMonthsInTier::Array{Float64,1}   # \delta^{mt}_{n}: Maximum monthly power demand in tier n
      MaxUsageInTier::Array{Float64,1}   # \delta^{tu}_{u}: Maximum monthly energy demand in tier u
-	 
+
 	 ###  Incentive Parameters ###
 	 NMILLimits::AxisArray   # i^{n}_{v}: Net metering and interconnect limits in net metering regime v [kW]
      MaxProdIncent::AxisArray      # \bar{i}_t: Upper incentive limit for technology t [$]
@@ -183,13 +183,17 @@ Base.@kwdef struct Parameter
 	 two_party_factor::Float64
      analysis_years::Int64     # Used to calculate present worth factors maybe?
      AnnualElecLoadkWh::Float64
-     CapCostSegCount::Int64    # Size of set S 
-     FuelBinCount::Int64       # Size of set F  
+     CapCostSegCount::Int64    # Size of set S
+     FuelBinCount::Int64       # Size of set F
      DemandBinCount ::Int64    # Size of set E
      DemandMonthsBinCount::Int64   # Size of set N
      TimeStepCount::Int64          # Size of set H
      Points::UnitRange{Int64}      # CapCostSegCount+1; this is going to be the size of set S^{c} now
      PricingTierCount::Int64    # Size of set U
+	 TempNodesCount::Int64
+	 InputNodesCount::Int64
+	 TempNodesCountWH::Int64
+	 InputNodesCountWH::Int64
 
      # new parameters for reformulation
      StorageCostPerKW::AxisArray
@@ -232,6 +236,45 @@ Base.@kwdef struct Parameter
 	CHPStandbyCharge::Float64
 	CHPDoesNotReduceDemandCharges::Int64
 	StorageDecayRate::AxisArray
+
+	#Added for flexible loads
+	FlexTechs::Array{String,1}
+	HVACTechs::Array{String,1}
+	WaterHeaterTechs::Array{String,1}
+	UseFlexLoadsModel::Bool
+	AMatrix::Array{Float64,2}
+	BMatrix::Array{Float64,2}
+	UInputs::Array{Float64,2}
+	InitTemperatures::Array{Float64,1}
+	SHR::Array{Float64,1}
+	TempNodes::UnitRange{Int64}
+	InputNodes::UnitRange{Int64}
+	InjectionNode::Int64
+	SpaceNode::Int64
+	TempLowerBound::Float64
+	TempUpperBound::Float64
+	FlexTechsCOP::AxisArray
+	MaxElecPenalty::Array{Float64,1}
+	DSE::AxisArray
+	FanPowerRatio::AxisArray
+	ComfortTempLimitHP::Float64
+	ComfortTempLimitAC::Float64
+    HVACComfortValue::Float64
+
+	#Water heater model
+	UseWaterHeaterModel::Bool
+	TempNodesWH::UnitRange{Int64}
+	InputNodesWH::UnitRange{Int64}
+    AMatrixWH::Array{Float64,2}
+    BMatrixWH::Array{Float64,2}
+    UInputsWH::Array{Float64,2}
+    InitTemperaturesWH::Array{Float64,1}
+    InjectionNodeWH::Int64
+    WaterNode::Int64
+    TempLowerBoundWH::Float64
+    TempUpperBoundWH::Float64
+	ComfortTempLimitWH::Float64
+    WHComfortValue::Float64
 end
 
 
@@ -254,9 +297,12 @@ function Parameter(d::Dict)
 		"NMILRegime",
 		"TechsByNMILRegime",
 		"TechsByFuelType",
-		"FuelCost"
+		"FuelCost",
+		"SHR",
+		"InitTemperatures",
+		"InitTemperaturesWH",
      )
-	for x in ["Tech","FuelType","CHPTechs"]
+	for x in ["Tech","FuelType","CHPTechs","FlexTechs","WaterHeaterTechs"]
 		if typeof(d[x]) === Array{Any, 1}  # came from Python as empty array
 			d[x] = convert(Array{String, 1}, d[x])
 		end
@@ -281,6 +327,13 @@ function Parameter(d::Dict)
     n_location = length(d["MaxSizesLocation"])
     d[:Location] = 1:n_location
     d[:CPPeriod] = 1:d["CoincidentPeakPeriodCount"]
+
+    #Flex loads
+	d[:TempNodes] = 1:d["TempNodesCount"]
+	d[:InputNodes] = 1:d["InputNodesCount"]
+	d[:TempNodesWH] = 1:d["TempNodesCountWH"]
+	d[:InputNodesWH] = 1:d["InputNodesCountWH"]
+
 
     # the following array manipulation may have to adapt once length(d["Subdivision"]) > 1
     seg_min_size_array = reshape(transpose(reshape(d["SegmentMinSize"], length(d[:Seg]), length(d["Tech"]))),
@@ -354,6 +407,18 @@ function Parameter(d::Dict)
 	d["CHPThermalProdFactor"] = vector_to_axisarray(d["CHPThermalProdFactor"],d["CHPTechs"],d[:TimeStep])
 	d["pwf_fuel"] = AxisArray(d["pwf_fuel"], d["Tech"])
 	d["StorageDecayRate"] = AxisArray(d["StorageDecayRate"], d["Storage"])
+
+	# Flexible load additions
+	d["AMatrix"] = reshape(d["AMatrix"],d["TempNodesCount"],d["TempNodesCount"])
+	d["BMatrix"] = reshape(d["BMatrix"],d["TempNodesCount"],d["InputNodesCount"])
+	d["UInputs"] = transpose(reshape(d["UInputs"],d["TimeStepCount"],d["InputNodesCount"]))
+	d["FlexTechsCOP"] = vector_to_axisarray(d["FlexTechsCOP"],d["FlexTechs"],d[:TimeStep])
+	d["DSE"] = AxisArray(d["DSE"],d["HVACTechs"])
+	d["FanPowerRatio"] = AxisArray(d["FanPowerRatio"],d["HVACTechs"])
+
+	d["AMatrixWH"] = reshape(d["AMatrixWH"],d["TempNodesCountWH"],d["TempNodesCountWH"])
+	d["BMatrixWH"] = reshape(d["BMatrixWH"],d["TempNodesCountWH"],d["InputNodesCountWH"])
+	d["UInputsWH"] = transpose(reshape(d["UInputsWH"],d["TimeStepCount"],d["InputNodesCountWH"]))
 
     # Indexed Sets
     if isempty(d["FuelType"])

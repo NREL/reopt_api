@@ -138,7 +138,7 @@ class RateData:
                 setattr(self, k, rate.get(k))
             else:
                 setattr(self, k, list())
-        
+
         if self.demandunits == 'hp': #convert hp to KW, assume PF is 1 so no need to convert kVA to kW, as of 01/28/2020 only 3 rates in URDB with hp units
             for period in self.demandratestructure:
                 for tier in period:
@@ -228,7 +228,7 @@ class UrdbParse:
         self.reopt_args.chp_standby_rate_us_dollars_per_kw_per_month_bau, \
         self.reopt_args.chp_does_not_reduce_demand_charges_bau, \
         = self.prepare_techs_and_loads(self.bau_techs)
-        
+
         return self.reopt_args
 
     def prepare_summary(self, current_rate):
@@ -421,7 +421,7 @@ class UrdbParse:
         # CHP-specific parameters
         chp_standby_rate = self.chp_standby_rate_us_dollars_per_kw_per_month
         chp_does_not_reduce_demand_charges = self.chp_does_not_reduce_demand_charges
-        
+
         return energy_costs, grid_export_rates, chp_standby_rate, chp_does_not_reduce_demand_charges
 
     def prepare_demand_periods(self, current_rate):
@@ -604,7 +604,7 @@ class UrdbParse:
     def prepare_fixed_charges(self, current_rate):
         if not isinstance(current_rate.fixedchargefirstmeter, list):      #URDB v7
             if current_rate.fixedchargeunits == '$/month': # first try $/month, then check if $/day exists, as of 1/28/2020 there were only $/day and $month entries in the URDB
-                self.reopt_args.fixed_monthly_charge = current_rate.fixedchargefirstmeter 
+                self.reopt_args.fixed_monthly_charge = current_rate.fixedchargefirstmeter
             if current_rate.fixedchargeunits == '$/day':
                 self.reopt_args.fixed_monthly_charge = current_rate.fixedchargefirstmeter*30.4375 # scalar intended to approximate annual charges over 12 month period, derived from 365.25/12
         else:                                                           #URDB v3, preserve backwards compatability

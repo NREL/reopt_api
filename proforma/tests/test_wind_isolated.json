@@ -18,7 +18,7 @@
       },
       "land_acres": null,
       "latitude": 34.5794343,
-      "outage_end_time_step": null,
+      "outage_end_hour": null,
       "roof_squarefeet": null,
       "PV": {
         "existing_kw": 0,
@@ -1065,7 +1065,7 @@
         "wholesale_rate_us_dollars_per_kwh": null,
         "urdb_utility_name": null
       },
-      "outage_start_time_step": null
+      "outage_start_hour": null
     }
   }
 }

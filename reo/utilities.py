@@ -68,7 +68,7 @@ def degradation_factor(analysis_period, rate_degradation):
     for yr in range(1, int(analysis_period)):
         factor *= (1 - rate_degradation)
         factors.append(factor)
-    return sum(factors)/analysis_period
+    return sum(factors) / analysis_period
 
 
 def annuity_escalation(analysis_period, rate_escalation, rate_discount):
@@ -86,21 +86,18 @@ def annuity_escalation(analysis_period, rate_escalation, rate_discount):
 
 
 def insert_u_bp(xp_array_incent, yp_array_incent, region, u_xbp, u_ybp, p, u_cap):
-
     xp_array_incent[region].append(u_xbp)
     yp_array_incent[region].append(u_ybp - u_ybp * p + u_cap)
     return xp_array_incent, yp_array_incent
 
 
 def insert_p_bp(xp_array_incent, yp_array_incent, region, p_xbp, p_ybp, u, p_cap):
-
     xp_array_incent[region].append(p_xbp)
     yp_array_incent[region].append(p_ybp - (p_cap + p_xbp * u))
     return xp_array_incent, yp_array_incent
 
 
 def insert_u_after_p_bp(xp_array_incent, yp_array_incent, region, u_xbp, u_ybp, p, p_cap, u_cap):
-
     xp_array_incent[region].append(u_xbp)
     if p_cap == 0:
         yp_array_incent[region].append(u_ybp - (p * u_ybp + u_cap))
@@ -110,7 +107,6 @@ def insert_u_after_p_bp(xp_array_incent, yp_array_incent, region, u_xbp, u_ybp, 
 
 
 def insert_p_after_u_bp(xp_array_incent, yp_array_incent, region, p_xbp, p_ybp, u, u_cap, p_cap):
-
     xp_array_incent[region].append(p_xbp)
     if u_cap == 0:
         yp_array_incent[region].append(p_ybp - (p_cap + u * p_xbp))
@@ -122,7 +118,6 @@ def insert_p_after_u_bp(xp_array_incent, yp_array_incent, region, p_xbp, p_ybp, 
 def setup_capital_cost_incentive(itc_basis, replacement_cost, replacement_year,
                                  discount_rate, tax_rate, itc,
                                  macrs_schedule, macrs_bonus_pct, macrs_itc_reduction):
-
     """ effective PV and battery prices with ITC and depreciation
         (i) depreciation tax shields are inherently nominal --> no need to account for inflation
         (ii) ITC and bonus depreciation are taken at end of year 1
@@ -143,7 +138,7 @@ def setup_capital_cost_incentive(itc_basis, replacement_cost, replacement_year,
     depr_basis -= bonus_depreciation
 
     # Calculate replacement cost, discounted to the replacement year accounting for tax deduction
-    replacement = replacement_cost * (1-tax_rate) / ((1 + discount_rate) ** replacement_year)
+    replacement = replacement_cost * (1 - tax_rate) / ((1 + discount_rate) ** replacement_year)
 
     # Compute savings from depreciation and itc in array to capture NPV
     tax_savings_array = [0]
@@ -190,11 +185,13 @@ def check_common_outputs(Test, d_calculated, d_expected):
                 tolerance = 2 * Test.REopt_tol
 
             if key in c and key in e:
-                if (not isinstance(e[key], list) and isinstance(c[key], list)) or \
-                        (isinstance(e[key], list) and not isinstance(c[key], list)):
-                    Test.fail('Key: {0} expected type: {1} actual type {2}'.format(key, str(type(e[key])), str(type(c[key]))))
+                if (not isinstance(e[key], list) and isinstance(e[key], list)) or \
+                        (isinstance(e[key], list) and not isinstance(e[key], list)):
+                    Test.fail(
+                        'Key: {0} expected type: {1} actual type {2}'.format(key, str(type(e[key])), str(type(c[key]))))
                 elif e[key] == 0:
-                    Test.assertEqual(c[key], e[key], 'Key: {0} expected: {1} actual {2}'.format(key, str(e[key]), str(c[key])))
+                    Test.assertEqual(c[key], e[key],
+                                     'Key: {0} expected: {1} actual {2}'.format(key, str(e[key]), str(c[key])))
                 else:
                     if isinstance(e[key], float) or isinstance(e[key], int):
                         if key in ['batt_kw', 'batt_kwh']:
@@ -209,15 +206,17 @@ def check_common_outputs(Test, d_calculated, d_expected):
                 print("Warning: Expected value for {} not in calculated dictionary.".format(key))
 
         if 'lcc_bau' in c and c['lcc_bau'] > 0:
-        # Total LCC BAU is sum of utility costs
-            Test.assertTrue(abs((float(c['lcc_bau'] or 0) - float(c['total_energy_cost_bau'] or 0) - float(c['total_min_charge_adder'] or 0)
-                            - float(c['total_demand_cost_bau'] or 0) - float(c['existing_pv_om_cost_us_dollars'] or 0)
-                            - float(c['total_fixed_cost_bau'] or 0)
-                            - float(c['existing_gen_total_variable_om_cost_us_dollars'] or 0)
-                            - float(c['existing_gen_total_fixed_om_cost_us_dollars'] or 0)
-                            - float(c['existing_gen_total_fuel_cost_us_dollars'] or 0)
-                            - float(c.get('total_boiler_fuel_cost_bau') or 0))
-                            / float(c['lcc_bau'] or 0)) < Test.REopt_tol,
+            # Total LCC BAU is sum of utility costs
+            Test.assertTrue(abs((float(c['lcc_bau'] or 0) - float(c['total_energy_cost_bau'] or 0) - float(
+                c['total_min_charge_adder'] or 0)
+                                 - float(c['total_demand_cost_bau'] or 0) - float(
+                        c['existing_pv_om_cost_us_dollars'] or 0)
+                                 - float(c['total_fixed_cost_bau'] or 0)
+                                 - float(c['existing_gen_total_variable_om_cost_us_dollars'] or 0)
+                                 - float(c['existing_gen_total_fixed_om_cost_us_dollars'] or 0)
+                                 - float(c['existing_gen_total_fuel_cost_us_dollars'] or 0)
+                                 - float(c.get('total_boiler_fuel_cost_bau') or 0))
+                                / float(c['lcc_bau'] or 0)) < Test.REopt_tol,
                             "LCC_BAU doesn't add up to sum of individual costs")
     except Exception as e:
         print("check_common_outputs failed: {}".format(e.args[0]))
@@ -228,15 +227,15 @@ def check_common_outputs(Test, d_calculated, d_expected):
                 message: \t {}
                 traceback: \t {}
                 """.format(em.task, em.message, em.traceback)
-            )
+                            )
         else:
             raise e
+
 
 def generate_year_profile_hourly(year, consecutive_periods):
     """
     This function creates a year-specific 8760 profile with 1.0 for timesteps which are defined in the relative_periods based on
         generalized (non-year specific) datetime metrics. All other values are 0.0. This functions uses numpy, pandas, datetime, and calendar packages/libraries.
-
     :param year: year for applying consecutive_periods changes based on year and leap years (cut off 12/31/year)
     :param consecutive_periods: either list of dictionaries where each dict defines a period (keys = "month", "start_week_of_month", "start_day_of_week", "start_hour", "duration_hours"; length N periods)
         OR can be a Pandas DataFrame with columns equivalent to the dict keys in which case it gets converted to list_of_dict. All of the value types are integers.
@@ -247,12 +246,12 @@ def generate_year_profile_hourly(year, consecutive_periods):
     errors_list = []
     # Create datetime series of the year, remove last day of the year if leap year
     if calendar.isleap(year):
-        end_date = "12/31/"+str(year)
+        end_date = "12/31/" + str(year)
     else:
-        end_date = "1/1/"+str(year+1)
-    dt_profile = pd.date_range(start='1/1/'+str(year), end=end_date, freq="1H", closed="left")
+        end_date = "1/1/" + str(year + 1)
+    dt_profile = pd.date_range(start='1/1/' + str(year), end=end_date, freq="1H", closed="left")
     year_profile_hourly_series = pd.Series(np.zeros(8760), index=dt_profile)
-    
+
     # Check if the consecutive_periods is a list_of_dict or other (must be Pandas DataFrame), and if other, convert to list_of_dict
     if not isinstance(consecutive_periods, list):
         consecutive_periods = consecutive_periods.to_dict('records')
@@ -261,42 +260,57 @@ def generate_year_profile_hourly(year, consecutive_periods):
     start_day_of_month_list = []
     for i in range(len(consecutive_periods)):
         start_month = int(consecutive_periods[i]["month"])  # One-indexed both user input and Calendar package
-        start_week_of_month = int(consecutive_periods[i]["start_week_of_month"] - 1)  # One-indexed for user, but zero-index for Calendar
-        start_day_of_week = int(consecutive_periods[i]["start_day_of_week"] - 1)  # Monday - Sunday is 1 - 7 for user, 0 - 6 for Calendar
+        start_week_of_month = int(
+            consecutive_periods[i]["start_week_of_month"] - 1)  # One-indexed for user, but zero-index for Calendar
+        start_day_of_week = int(
+            consecutive_periods[i]["start_day_of_week"] - 1)  # Monday - Sunday is 1 - 7 for user, 0 - 6 for Calendar
         start_hour = int(consecutive_periods[i]["start_hour"] - 1)  # One-indexed for user, datetime hour is zero-index
         duration_hours = int(consecutive_periods[i]["duration_hours"])
-        error_start_text = "Error in chp_unavailability_period {}. ".format(i+1)
+        error_start_text = "Error in chp_unavailability_period {}. ".format(i + 1)
         try:
-            start_day_of_month = calendar.Calendar().monthdayscalendar(year=year,month=start_month)[start_week_of_month][start_day_of_week]  # One-indexed
+            start_day_of_month = \
+            calendar.Calendar().monthdayscalendar(year=year, month=start_month)[start_week_of_month][
+                start_day_of_week]  # One-indexed
             start_day_of_month_list.append(start_day_of_month)
             if start_day_of_month == 0:  # This may happen if there is no day_of_week in the 1st, 5th or 6th week of the month
-                raise DayOfWeekError("There is no start_day_of_week {} ({}) in week {} of month {} in the year {}. Remember, Monday is treated as the first day of the week.".format(start_day_of_week+1, day_of_week_name[start_day_of_week], start_week_of_month+1, start_month, year))
+                raise DayOfWeekError(
+                    "There is no start_day_of_week {} ({}) in week {} of month {} in the year {}. Remember, Monday is treated as the first day of the week.".format(
+                        start_day_of_week + 1, day_of_week_name[start_day_of_week], start_week_of_month + 1,
+                        start_month, year))
             else:
-                start_datetime = datetime.datetime(year=year, month=start_month, day=start_day_of_month, hour=start_hour)
-                if start_datetime + datetime.timedelta(hours=duration_hours-1) > dt_profile[-1]:
-                    raise DurationOverflowsYearError("The start day/time and duration_hours exceeds the end of the year. Please specify two separate unavailability periods: one for the beginning of the year and one for up to the end of the year.")
+                start_datetime = datetime.datetime(year=year, month=start_month, day=start_day_of_month,
+                                                   hour=start_hour)
+                if start_datetime + datetime.timedelta(hours=duration_hours - 1) > dt_profile[-1]:
+                    raise DurationOverflowsYearError(
+                        "The start day/time and duration_hours exceeds the end of the year. Please specify two separate unavailability periods: one for the beginning of the year and one for up to the end of the year.")
                 else:
-                    year_profile_hourly_series[start_datetime:start_datetime + datetime.timedelta(hours=duration_hours-1)] = 1.0
-            
+                    year_profile_hourly_series[
+                    start_datetime:start_datetime + datetime.timedelta(hours=duration_hours - 1)] = 1.0
+
         except DayOfWeekError as e:
             errors_list.append(error_start_text + str(e.args[0]))
         except DurationOverflowsYearError as e:
             errors_list.append(error_start_text + str(e.args[0]))
         except:
-            errors_list.append(error_start_text + "Invalid set for month {} (1-12), start_week_of_month {} (1-4, possible 5 and 6), start_day_of_week {} (1-7), and start_hour_of_day {} (1-24) for the year {}.".format(start_month, start_week_of_month+1, start_day_of_week+1, start_hour+1, year))
+            errors_list.append(
+                error_start_text + "Invalid set for month {} (1-12), start_week_of_month {} (1-4, possible 5 and 6), start_day_of_week {} (1-7), and start_hour_of_day {} (1-24) for the year {}.".format(
+                    start_month, start_week_of_month + 1, start_day_of_week + 1, start_hour + 1, year))
 
     if errors_list == []:
         year_profile_hourly_list = list(year_profile_hourly_series)
     else:
-        year_profile_hourly_list = []   
-    
+        year_profile_hourly_list = []
+
     return year_profile_hourly_list, start_day_of_month_list, errors_list
+
 
 class DayOfWeekError(Exception):
     pass
 
+
 class DurationOverflowsYearError(Exception):
     pass
+
 
 def get_weekday_weekend_total_hours_by_month(year, year_profile_hourly_list):
     """
@@ -305,29 +319,34 @@ def get_weekday_weekend_total_hours_by_month(year, year_profile_hourly_list):
     :param year_profile_hourly_list: list of 0's and 1's for tallying the metrics above; typically created using the generate_year_profile_hourly function
     :return weekday_weekend_total_hours_by_month: nested dictionary with 12 keys (one for each month) each being a dictionary of weekday_hours, weekend_hours, and total_hours
     """
-        # Create datetime series of the year, remove last day of the year if leap year
+    # Create datetime series of the year, remove last day of the year if leap year
     if calendar.isleap(year):
-        end_date = "12/31/"+str(year)
+        end_date = "12/31/" + str(year)
     else:
-        end_date = "1/1/"+str(year+1)
-    dt_profile = pd.date_range(start='1/1/'+str(year), end=end_date, freq="1H", closed="left")
+        end_date = "1/1/" + str(year + 1)
+    dt_profile = pd.date_range(start='1/1/' + str(year), end=end_date, freq="1H", closed="left")
     year_profile_hourly_series = pd.Series(year_profile_hourly_list, index=dt_profile)
     unavail_hours = year_profile_hourly_series[year_profile_hourly_series == 1]
-    weekday_weekend_total_hours_by_month = {m:{} for m in range(1,13)}
-    for m in range(1,13):
-        unavail_hours_month = unavail_hours[unavail_hours.index.month==m]
-        weekday_weekend_total_hours_by_month[m]["weekends"] = int(sum(unavail_hours_month[(unavail_hours_month.index.dayofweek==5) | (unavail_hours_month.index.dayofweek==6)]))
-        weekday_weekend_total_hours_by_month[m]["weekdays"] = int(sum(unavail_hours_month) - weekday_weekend_total_hours_by_month[m]["weekends"])
-        weekday_weekend_total_hours_by_month[m]["total"] = int(weekday_weekend_total_hours_by_month[m]["weekdays"] + weekday_weekend_total_hours_by_month[m]["weekends"])
+    weekday_weekend_total_hours_by_month = {m: {} for m in range(1, 13)}
+    for m in range(1, 13):
+        unavail_hours_month = unavail_hours[unavail_hours.index.month == m]
+        weekday_weekend_total_hours_by_month[m]["weekends"] = int(sum(unavail_hours_month[
+                                                                          (unavail_hours_month.index.dayofweek == 5) | (
+                                                                                      unavail_hours_month.index.dayofweek == 6)]))
+        weekday_weekend_total_hours_by_month[m]["weekdays"] = int(
+            sum(unavail_hours_month) - weekday_weekend_total_hours_by_month[m]["weekends"])
+        weekday_weekend_total_hours_by_month[m]["total"] = int(
+            weekday_weekend_total_hours_by_month[m]["weekdays"] + weekday_weekend_total_hours_by_month[m]["weekends"])
 
     return weekday_weekend_total_hours_by_month
 
 #conversion factor for ton-hours to kilowatt-hours thermal
 TONHOUR_TO_KWHT = 3.51685  # [kWh/ton-hr]
 
-#Creates and empty dot accessible dict for spoofing an empty DB record (i.e. empty_record().size_kw resolves to None)
+
+# Creates and empty dot accessible dict for spoofing an empty DB record (i.e. empty_record().size_kw resolves to None)
 class empty_record(dict):
-        __getattr__ = dict.get
+    __getattr__ = dict.get
 
 # Convert MMBtu to kWh or MMBtu/hr to kW
 MMBTU_TO_KWH = 293.07107018  # [kWh/MMBtu]

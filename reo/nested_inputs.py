@@ -108,8 +108,8 @@ nested_input_definitions = {
     "timeout_seconds": {
       "type": "int",
       "min": 1,
-      "max": 420,
-      "default": 420,
+      "max": 100000,
+      "default": 4200,
       "description": "The number of seconds allowed before the optimization times out"
     },
     "user_uuid": {
@@ -339,14 +339,14 @@ nested_input_definitions = {
           "type": "int",
           "min": 0,
           "max": 8759,
-          "depends_on": ["outage_end_hour"],
+          "depends_on":["outage_end_hour"],
           "description": "Hour of year that grid outage starts. Must be less than outage_end."
         },
         "outage_end_hour": {
           "type": "int",
           "min": 0,
           "max": 8759,
-          "depends_on": ["outage_start_hour"],
+          "depends_on":["outage_start_hour"],
           "description": "Hour of year that grid outage ends. Must be greater than outage_start."
         },
         "outage_start_time_step": {
@@ -1154,7 +1154,7 @@ nested_input_definitions = {
           "total_rebate_us_dollars_per_kwh": {
             "type": "float", "min": 0, "max": 1e9, "default": 0,
             "description": "Rebate based on installed energy capacity"
-           }             
+           }
         },
 
       "Generator": {
@@ -1833,7 +1833,298 @@ nested_input_definitions = {
           "default": 0.0,
           "description": "Percent of upfront project costs to depreciate under MACRS"
         }
+      },
+      "RC": {
+        "use_flexloads_model": {
+          "type": "bool",
+          "default": False,
+          "description": "Toggle to turn on flexible loads modeling."
+        },
+        "a_matrix": {
+          "type": "list_of_float",
+          "default": [0.0],
+          "description": "A matrix"
+        },
+        "b_matrix": {
+          "type": "list_of_float",
+          "default": [0.0],
+          "description": "B matrix"
+        },
+        "u_inputs": {
+          "type": "list_of_float",
+          "default": [0.0],
+          "description": "Inputs"
+        },
+        "init_temperatures": {
+          "type": "list_of_float",
+          "default": [],
+          "description": "Initial temperatures at each temperature node"
+        },
+        "n_temp_nodes": {
+          "type": "int",
+          "default": 1,
+          "description": "Number of temperature nodes"
+        },
+        "n_input_nodes": {
+          "type": "int",
+          "default": 1,
+          "description": "Number of current/voltage sources"
+        },
+        "injection_node": {
+          "type": "int",
+          "default": 1,
+          "description": "Injection node number"
+        },
+        "space_node": {
+          "type": "int",
+          "default": 1,
+          "description": "Space node number"
+        },
+        "temperature_lower_bound": {
+          "type": "float",
+          "min": -50.0,
+          "max": 40.0,
+          "default": 0.0,
+          "description": "Minimum allowable indoor air temperature"
+        },
+        "temperature_upper_bound": {
+          "type": "float",
+          "min": 0.0,
+          "max": 40.0,
+          "default": 40.0,
+          "description": "Maximum allowable indoor air temperature"
+        },
+        "comfort_temp_lower_bound_degC": {
+          "type": "float", "min": -50.0, "max": 40.0, "default": 0.0,
+          "description": "Comfort costs are incurred if indoor temperature drops below this limit in degree Celsius"
+        },
+        "comfort_temp_upper_bound_degC": {
+          "type": "float", "min": 0.0, "max": 40.0, "default": 40.0,
+          "description": "Comfort costs are incurred if indoor temperature rises above this limit in degree Celsius"
+        },
+        "comfort_HVAC_value_usd_per_degC": {
+          "type": "float", "min": 0.0, "max": 1000000, "default": 1,
+          "description": "Comfort costs (in $/degC) are applied to each timestep where temperature goes outside comfort bounds"
+        }
+      },
+      "FlexTechAC": {
+        "existing_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e5,
+          "default": 0.0,
+          "description": "Existing AC size"
+        },
+        "min_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e9,
+          "default": 0.0,
+          "description": "Minimum AC size constraint for optimization"
+        },
+        "max_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e9,
+          "default": 0.0,
+          "description": "Maximum AC size constraint for optimization. Set to zero to disable AC"
+        },
+        "installed_cost_us_dollars_per_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e5,
+          "default": 0.0,
+          "description": "Installed AC cost in $/kW"
+        },
+        "om_cost_us_dollars_per_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e3,
+          "default": 0.0,
+          "description": "Annual AC operations and maintenance costs in $/kW"
+        },
+        "prod_factor_series_kw": {
+          "type": "list_of_float",
+          "default": [],
+          "description": "User-defined production factors. Entries have units of kWh/kW, representing the energy (kWh) output of a 1 kW system in each time step. Must be hourly (8,760 samples), 30 minute (17,520 samples), or 15 minute (35,040 samples)."
+        },
+        "cop": {
+          "type": "list_of_float",
+          "default": [],
+          "description": "AC COP. Must be hourly (8,760 samples), 30 minute (17,520 samples), or 15 minute (35,040 samples)."
+        },
+        "shr": {
+          "type": "list_of_float",
+          "default": [],
+          "description": "Time-varying SHR"
+        },
+        "fan_power_ratio": {
+          "type": "float",
+          "default": 0.0,
+          "description": "AC fan power ratio"
+        },
+        "dse": {
+          "type": "float",
+          "default": 1.0,
+          "description": "Cooling static duct efficiency"
+        }
+      },
+      "FlexTechHP": {
+        "existing_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e5,
+          "default": 0.0,
+          "description": "Existing HP size"
+        },
+        "min_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e9,
+          "default": 0.0,
+          "description": "Minimum HP size constraint for optimization"
+        },
+        "max_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e9,
+          "default": 0.0,
+          "description": "Maximum HP size constraint for optimization. Set to zero to disable HP"
+        },
+        "installed_cost_us_dollars_per_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e5,
+          "default": 0.0,
+          "description": "Installed HP cost in $/kW"
+        },
+        "om_cost_us_dollars_per_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e3,
+          "default": 0.0,
+          "description": "Annual HP operations and maintenance costs in $/kW"
+        },
+        "prod_factor_series_kw": {
+          "type": "list_of_float",
+          "default": [],
+          "description": "User-defined production factors. Must be hourly (8,760 samples), 30 minute (17,520 samples), or 15 minute (35,040 samples)."
+        },
+        "cop": {
+          "type": "list_of_float",
+          "default": [],
+          "description": "HP COP. Must be hourly (8,760 samples), 30 minute (17,520 samples), or 15 minute (35,040 samples)."
+        },
+        "fan_power_ratio": {
+          "type": "float",
+          "default": 0.0,
+          "description": "HP fan power ratio"
+        },
+        "dse": {
+          "type": "float",
+          "default": 1.0,
+          "description": "Cooling static duct efficiency"
+        }
+      },
+      "HotWaterTank": {
+        "a_matrix": {
+          "type": "list_of_float",
+          "default": [0.0],
+          "description": "Water heater A matrix"
+        },
+        "b_matrix": {
+          "type": "list_of_float",
+          "default": [0.0],
+          "description": "Water heater B matrix"
+        },
+        "u_inputs": {
+          "type": "list_of_float",
+          "default": [0.0],
+          "description": "Water heater U inputs"
+        },
+        "init_temperatures_degC": {
+          "type": "list_of_float",
+          "default": [],
+          "description": "Initial temperatures of the water heater RC model in degree Celsius"
+        },
+        "n_temp_nodes": {
+          "type": "int",
+          "default": 1,
+          "description": "Number of temperature nodes"
+        },
+        "n_input_nodes": {
+          "type": "int",
+          "default": 1,
+          "description": "Number of input nodes"
+        },
+        "injection_node": {
+          "type": "int",
+          "default": 1,
+          "description": "Injection node number"
+        },
+        "water_node": {
+          "type": "int",
+          "default": 1,
+          "description": "Hot water node number"
+        },
+        "temperature_lower_bound_degC": {
+          "type": "float", "min": -30.0, "max": 50.0, "default": 10.0,
+          "description": "Minimum allowable tank temperature in degree Celsius"
+        },
+        "temperature_upper_bound_degC": {
+          "type": "float", "min": 0.0, "max": 100.0, "default": 60.0,
+          "description": "Maximum allowable tank temperature in degree Celsius"
+        },
+        "installed_cost_us_dollars_per_kw": {
+          "type": "float", "min": 0.0, "max": 500.0, "default": 0.0,
+          "description": "Installed cost of the hot water tank in USD/gallon"
+        },
+        "comfort_temp_limit_degC": {
+          "type": "float", "min": 0.0, "max": 60.0, "default": 0.0,
+          "description": "Comfort costs are incurred if tank temperature drops below this limit in degree Celsius"
+        },
+        "comfort_WH_value_usd_per_degC": {
+          "type": "float", "min": 0.0, "max": 1000000, "default": 1,
+          "description": "Comfort costs (in $/degC) are applied to each timestep where tank temperature goes below comfort bound"
+        }
+      },
+      "FlexTechERWH": {
+        "size_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e9,
+          "default": 0.0,
+          "description": "ERWH size"
+        },
+        "installed_cost_us_dollars_per_kw": {
+          "type": "float", "min": 0.0, "max": 1000.0, "default": 0.0,
+          "description": "Installed cost of the ERWH in USD/gallon"
+        }
+      },
+      "FlexTechHPWH": {
+        "size_kw": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0e9,
+          "default": 0.0,
+          "description": "HPWH size"
+        },
+        "installed_cost_us_dollars_per_kw": {
+          "type": "float", "min": 0.0, "max": 1000.0, "default": 0.0,
+          "description": "Installed cost of the HPWH in USD/gallon"
+        },
+        "prod_factor_series_kw": {
+          "type": "list_of_float",
+          "default": [1.0] * 8760,
+          "description": "User-defined production factors. Must be hourly (8,760 samples), 30 minute (17,520 samples), or 15 minute (35,040 samples)."
+        },
+        "cop": {
+          "type": "list_of_float",
+          "default": [1.0] * 8760,
+          "description": "HPWH COP. Must be hourly (8,760 samples), 30 minute (17,520 samples), or 15 minute (35,040 samples)."
+        }
       }
+
     }
   }
 }

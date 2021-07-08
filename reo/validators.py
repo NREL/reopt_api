@@ -1048,44 +1048,74 @@ class ValidateNestedInput:
 
                         self.validate_8760(real_values.get("pressure_atmospheres"),
                                             "Wind", "pressure_atmospheres", self.input_dict['Scenario']['time_steps_per_hour'])
-                    
-                    from reo.src.wind_resource import get_conic_coords
+                    else:
+                        from reo.src.wind_resource import get_conic_coords
 
+                        if self.input_dict['Scenario']['Site']['Wind'].get('size_class') is None:
+                            """
+                            size_class is determined by average load. If using simulated load, then we have to get the ASHRAE
+                            climate zone from the DeveloperREOapi in order to determine the load profile (done in BuiltInProfile).
+                            In order to avoid redundant external API calls, when using the BuiltInProfile here we save the
+                            BuiltInProfile in the inputs as though a user passed in the profile as their own. This logic used to be
+                            handled in reo.src.load_profile, but due to the need for the average load here, the work-flow has been
+                            modified.
+                            """
 
-                    if self.input_dict['Scenario']['Site']['Wind'].get('size_class') is None:
-                        """
-                        size_class is determined by average load. If using simulated load, then we have to get the ASHRAE
-                        climate zone from the DeveloperREOapi in order to determine the load profile (done in BuiltInProfile).
-                        In order to avoid redundant external API calls, when using the BuiltInProfile here we save the
-                        BuiltInProfile in the inputs as though a user passed in the profile as their own. This logic used to be
-                        handled in reo.src.load_profile, but due to the need for the average load here, the work-flow has been
-                        modified.
-                        """
-                        from reo.src.load_profile import LoadProfile
-                        
-                        lp = LoadProfile(dfm=None,
-                             user_profile=self.input_dict['Scenario']['Site']['LoadProfile'].get('loads_kw'),
-                             latitude=self.input_dict['Scenario']['Site'].get('latitude'),
-                             longitude=self.input_dict['Scenario']['Site'].get('longitude'),
-                             time_steps_per_hour=self.input_dict['Scenario']['time_steps_per_hour'],
-                             **self.input_dict['Scenario']['Site']['LoadProfile'])
+                            avg_load_kw = 0
+                            if self.input_dict['Scenario']['Site']['LoadProfile'].get('annual_kwh') is not None:
+                                annual_kwh = self.input_dict['Scenario']['Site']['LoadProfile'].get('annual_kwh')
+                                percent_share_list = self.input_dict['Scenario']['Site']['LoadProfile'].get('percent_share')
+                                # Find weighted avg for hybrid load profile
+                                avg_load_kw = sum(
+                                    [annual_kwh * pct / 100 for pct in percent_share_list]) / 8760
 
-                        avg_load_kw =  np.mean(lp.load_list) 
+                            elif self.input_dict['Scenario']['Site']['LoadProfile'].get('annual_kwh') is None and self.input_dict['Scenario']['Site']['LoadProfile'].get('doe_reference_name') is not None:
+                                from reo.src.load_profile import LoadProfile
+                                default_annual_kwh_list = []
+                                doe_reference_name_list = self.input_dict['Scenario']['Site']['LoadProfile']['doe_reference_name']
+                                percent_share_list = self.input_dict['Scenario']['Site']['LoadProfile']['percent_share']
+                                for i in range(len(doe_reference_name_list)):
+                                    self.input_dict['Scenario']['Site']['LoadProfile']['doe_reference_name'] = doe_reference_name_list[i]
+                                    if type(self.input_dict['Scenario']['Site']['LoadProfile']['doe_reference_name']) != list:
+                                        self.input_dict['Scenario']['Site']['LoadProfile']['doe_reference_name'] = [self.input_dict['Scenario']['Site']['LoadProfile']['doe_reference_name']]
+                                    b = LoadProfile(dfm = None, latitude=self.input_dict['Scenario']['Site']['latitude'],
+                                                       longitude=self.input_dict['Scenario']['Site']['longitude'],
+                                                       **self.input_dict['Scenario']['Site']['LoadProfile']
+                                                       )
+                                    default_annual_kwh_list.append(b.annual_kwh)
+                                avg_load_kw = sum([sum(default_annual_kwh_list) * percent_share_list[i] / 100 for i in range(len(default_annual_kwh_list))]) / 8760
+                                # resetting the doe_reference_name key to its original list
+                                # form for further processing in loadprofile.py file
+                                self.input_dict['Scenario']['Site']['LoadProfile'][
+                                    'doe_reference_name'] = doe_reference_name_list
 
-                        if avg_load_kw <= 12.5:
-                            self.input_dict['Scenario']['Site']['Wind']['size_class'] = 'residential'
-                        elif avg_load_kw <= 100:
-                            self.input_dict['Scenario']['Site']['Wind']['size_class'] = 'commercial'
-                        elif avg_load_kw <= 1000:
-                            self.input_dict['Scenario']['Site']['Wind']['size_class'] = 'medium'
-                        else:
-                            self.input_dict['Scenario']['Site']['Wind']['size_class'] = 'large'
-                    try:
-                        get_conic_coords(
-                            lat=self.input_dict['Scenario']['Site']['latitude'],
-                            lng=self.input_dict['Scenario']['Site']['longitude'])
-                    except Exception as e:
-                        self.input_data_errors.append(e.args[0])
+                            elif self.input_dict['Scenario']['Site']['LoadProfile'].get('loads_kw') in [None,[]]:
+                                from reo.src.load_profile import LoadProfile
+                                if type(self.input_dict['Scenario']['Site']['LoadProfile']['doe_reference_name']) != list:
+                                        self.input_dict['Scenario']['Site']['LoadProfile']['doe_reference_name'] = [self.input_dict['Scenario']['Site']['LoadProfile']['doe_reference_name']]
+                                b = LoadProfile(dfm = None, latitude=self.input_dict['Scenario']['Site']['latitude'],
+                                                   longitude=self.input_dict['Scenario']['Site']['longitude'],
+                                                   **self.input_dict['Scenario']['Site']['LoadProfile']
+                                                   )
+                                self.input_dict['Scenario']['Site']['LoadProfile']['loads_kw'] = b.built_in_profile
+
+                                avg_load_kw = sum(self.input_dict['Scenario']['Site']['LoadProfile']['loads_kw'])\
+                                                / len(self.input_dict['Scenario']['Site']['LoadProfile']['loads_kw'])
+
+                            if avg_load_kw <= 12.5:
+                                self.input_dict['Scenario']['Site']['Wind']['size_class'] = 'residential'
+                            elif avg_load_kw <= 100:
+                                self.input_dict['Scenario']['Site']['Wind']['size_class'] = 'commercial'
+                            elif avg_load_kw <= 1000:
+                                self.input_dict['Scenario']['Site']['Wind']['size_class'] = 'medium'
+                            else:
+                                self.input_dict['Scenario']['Site']['Wind']['size_class'] = 'large'
+                        try:
+                            get_conic_coords(
+                                lat=self.input_dict['Scenario']['Site']['latitude'],
+                                lng=self.input_dict['Scenario']['Site']['longitude'])
+                        except Exception as e:
+                            self.input_data_errors.append(e.args[0])
 
         if object_name_path[-1] == "CHP":
             prime_mover_defaults_all = copy.deepcopy(CHP.prime_mover_defaults_all)

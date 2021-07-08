@@ -119,6 +119,7 @@ ROLLBAR = {
 
 if 'test' in sys.argv or os.environ.get('APP_ENV') == 'local':
     ROLLBAR['enabled'] = False
+    DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -141,8 +142,8 @@ else:
              'OPTIONS': {
                  'options': '-c search_path=reopt_api'
              },
-             'USER': dev_user,
-             'PASSWORD': dev_user_password,
+             'USER': 'reopt',
+             'PASSWORD': 'reopt',
          }
 }
 

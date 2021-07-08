@@ -36,12 +36,13 @@ def nested_to_flat(nested_output):
         nested_output: dict, API response
     """
     base = {
+
         'run_uuid': nested_output['Scenario']['run_uuid'],
         'api_version': nested_output['Scenario']['api_version'],
         'status': nested_output['Scenario']['status'],
 
         'year_one_electric_load_series': nested_output['Scenario']['Site']['LoadProfile']['year_one_electric_load_series_kw'],
-        
+
         'lcc': nested_output['Scenario']['Site']['Financial']['lcc_us_dollars'],
         'lcc_bau': nested_output['Scenario']['Site']['Financial']['lcc_bau_us_dollars'],
         'npv': nested_output['Scenario']['Site']['Financial']['npv_us_dollars'],
@@ -58,7 +59,7 @@ def nested_to_flat(nested_output):
         'year_one_pv_to_load_series': nested_output['Scenario']['Site']['PV']['year_one_to_load_series_kw'],
         'year_one_pv_to_grid_series': nested_output['Scenario']['Site']['PV']['year_one_to_grid_series_kw'],
         'existing_pv_om_cost_us_dollars': nested_output['Scenario']['Site']['PV']['existing_pv_om_cost_us_dollars'],
-        
+
         'batt_kw': nested_output['Scenario']['Site']['Storage']['size_kw'],
         'batt_kwh': nested_output['Scenario']['Site']['Storage']['size_kwh'],
         'year_one_battery_to_load_series': nested_output['Scenario']['Site']['Storage']['year_one_to_load_series_kw'],

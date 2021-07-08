@@ -40,8 +40,8 @@ from reo.src.load_profile_boiler_fuel import LoadProfileBoilerFuel
 from reo.src.load_profile_chiller_thermal import LoadProfileChillerThermal
 from reo.src.profiler import Profiler
 from reo.src.site import Site
-from reo.src.storage import Storage, HotTES, ColdTES
-from reo.src.techs import PV, Util, Wind, Generator, CHP, Boiler, ElectricChiller, AbsorptionChiller
+from reo.src.storage import Storage, HotTES, ColdTES, HotWaterTank
+from reo.src.techs import PV, Util, Wind, Generator, CHP, Boiler, ElectricChiller, AbsorptionChiller, RC, FlexTechAC, FlexTechHP, FlexTechERWH, FlexTechHPWH
 from celery import shared_task, Task
 from reo.models import ModelManager
 from reo.exceptions import REoptError, UnexpectedError, LoadProfileError, WindDownloadError, PVWattsDownloadError, RequestError
@@ -109,6 +109,20 @@ def setup_scenario(self, run_uuid, data, raw_post):
         # Cold TES, always made, same reason as "storage", do unit conversions as needed here
         cold_tes = ColdTES(dfm=dfm, **inputs_dict['Site']['ColdTES'])
 
+        hot_water_tank = HotWaterTank(dfm=dfm, **inputs_dict['Site']['HotWaterTank'])
+
+        # Flexible load inputs
+        rc = RC(dfm=dfm, **inputs_dict['Site']['RC'])
+        if inputs_dict['Site']['RC']['use_flexloads_model']:
+            flex_tech_ac = FlexTechAC(dfm=dfm, **inputs_dict['Site']['FlexTechAC'])
+            flex_tech_hp = FlexTechHP(dfm=dfm, **inputs_dict['Site']['FlexTechHP'])
+
+        if inputs_dict["Site"]["FlexTechERWH"]["size_kw"] > 0:
+            flex_tech_erwh = FlexTechERWH(dfm=dfm, **inputs_dict['Site']['FlexTechERWH'])
+
+        if inputs_dict["Site"]["FlexTechHPWH"]["size_kw"] > 0:
+            flex_tech_hpwh = FlexTechHPWH(dfm=dfm, **inputs_dict['Site']['FlexTechHPWH'])
+
         site = Site(dfm=dfm, **inputs_dict["Site"])
         pvs = []
 
@@ -138,14 +152,13 @@ def setup_scenario(self, run_uuid, data, raw_post):
             return pv
 
         for pv_dict in inputs_dict["Site"]["PV"]:
-            pvs.append(setup_pv(pv_dict, latitude=inputs_dict['Site'].get('latitude'), 
-                                longitude=inputs_dict['Site'].get('longitude'), 
+            pvs.append(setup_pv(pv_dict, latitude=inputs_dict['Site'].get('latitude'),
+                                longitude=inputs_dict['Site'].get('longitude'),
                                 time_steps_per_hour=inputs_dict['time_steps_per_hour'])
                        )
-        
+
         if inputs_dict["Site"]["Generator"]["generator_only_runs_during_grid_outage"]:
-            if inputs_dict['Site']['LoadProfile'].get('outage_start_time_step') is not None and \
-                    inputs_dict['Site']['LoadProfile'].get('outage_end_time_step') is not None:
+            if inputs_dict['Site']['LoadProfile'].get('outage_start_time_step') is not None and inputs_dict['Site']['LoadProfile'].get('outage_end_time_step') is not None:
 
                 if inputs_dict["Site"]["Generator"]["max_kw"] > 0 or inputs_dict["Site"]["Generator"]["existing_kw"] > 0:
                     gen = Generator(dfm=dfm,
@@ -154,6 +167,7 @@ def setup_scenario(self, run_uuid, data, raw_post):
                             time_steps_per_hour=inputs_dict.get('time_steps_per_hour'),
                             **inputs_dict["Site"]["Generator"])
 
+
         elif not inputs_dict["Site"]["Generator"]["generator_only_runs_during_grid_outage"]:
             if inputs_dict["Site"]["Generator"]["max_kw"] > 0 or inputs_dict["Site"]["Generator"]["existing_kw"] > 0:
                 gen = Generator(dfm=dfm,
@@ -161,6 +175,7 @@ def setup_scenario(self, run_uuid, data, raw_post):
                             outage_end_time_step=inputs_dict['Site']['LoadProfile'].get("outage_end_time_step"),
                             time_steps_per_hour=inputs_dict.get('time_steps_per_hour'),
                             **inputs_dict["Site"]["Generator"])
+
 
         if 'gen' in locals():
             lp = LoadProfile(dfm=dfm,
@@ -196,14 +211,14 @@ def setup_scenario(self, run_uuid, data, raw_post):
         # correct loads falling between the threshold and zero.
 
         #Default tolerance +
-        negative_load_tolerance = -0.1 
+        negative_load_tolerance = -0.1
         # If there is existing PV update the default tolerance based on capacity
-        if pvs is not None: 
+        if pvs is not None:
             existing_pv_kw = 0
             for pv in pvs:
                 if getattr(pv,'existing_kw',0) > 0:
                     existing_pv_kw += pv.existing_kw
-            
+
             negative_load_tolerance = min(negative_load_tolerance, existing_pv_kw * -0.005) #kw
 
         # If values in the load profile fall below the tolerance, raise an exception
@@ -214,7 +229,7 @@ def setup_scenario(self, run_uuid, data, raw_post):
             lp_error = LoadProfileError(task=self.name, run_uuid=run_uuid, user_uuid=inputs_dict.get('user_uuid'), message=message)
             lp_error.save_to_db()
             raise lp_error
- 
+
         # Correct load profile values that fall between the tolerance and 0
         lp.load_list = [0 if ((x > negative_load_tolerance) and (x < 0)) else x for x in lp.load_list]
 
@@ -234,12 +249,12 @@ def setup_scenario(self, run_uuid, data, raw_post):
         else:
             boiler = None
 
-        # Load Profile Chiller Electric        
-        lpct = LoadProfileChillerThermal(dfm=dfm, total_electric_load_list=lp.unmodified_load_list, 
+        # Load Profile Chiller Electric
+        lpct = LoadProfileChillerThermal(dfm=dfm, total_electric_load_list=lp.unmodified_load_list,
                                             time_steps_per_hour=inputs_dict['time_steps_per_hour'],
-                                            latitude=inputs_dict['Site']['latitude'], 
-                                            longitude=inputs_dict['Site']['longitude'], 
-                                            nearest_city=lp.nearest_city or lpbf.nearest_city, 
+                                            latitude=inputs_dict['Site']['latitude'],
+                                            longitude=inputs_dict['Site']['longitude'],
+                                            nearest_city=lp.nearest_city or lpbf.nearest_city,
                                             year=lp.year, max_thermal_factor_on_peak_load=
                                             inputs_dict['Site']['ElectricChiller']['max_thermal_factor_on_peak_load'],
                                             **inputs_dict['Site']['LoadProfileChillerThermal'])
@@ -259,7 +274,7 @@ def setup_scenario(self, run_uuid, data, raw_post):
             lpct_error = LoadProfileError(task=self.name, run_uuid=run_uuid, user_uuid=inputs_dict.get('user_uuid'), message=message)
             lpct_error.save_to_db()
             raise lpct_error
- 
+
         # Option 1, retrieve annual load from calculations here and add to database
         tmp = dict()
         tmp['chiller_cop'] = lpct.chiller_cop
@@ -283,11 +298,11 @@ def setup_scenario(self, run_uuid, data, raw_post):
                                  **inputs_dict['Site']['ElectricTariff'])
 
         if inputs_dict["Site"]["Wind"]["max_kw"] > 0:
-            wind = Wind(dfm=dfm, inputs_path=inputs_path, 
+            wind = Wind(dfm=dfm, inputs_path=inputs_path,
                         latitude=inputs_dict['Site'].get('latitude'),
                         longitude=inputs_dict['Site'].get('longitude'),
                         time_steps_per_hour=inputs_dict.get('time_steps_per_hour'),
-                        run_uuid=run_uuid, 
+                        run_uuid=run_uuid,
                         **inputs_dict["Site"]["Wind"])
 
             # must propogate these changes back to database for proforma
@@ -338,8 +353,9 @@ def setup_scenario(self, run_uuid, data, raw_post):
 
         # delete python objects, which are not serializable
 
-        for k in ['storage', 'hot_tes', 'cold_tes', 'site', 'elec_tariff', 'fuel_tariff', 'pvs', 'pvnms',
-                'load', 'util', 'heating_load', 'cooling_load'] + dfm.available_techs:
+        for k in ['storage', 'hot_tes', 'cold_tes', 'site', 'elec_tariff', 'fuel_tariff', 'pvs', 'pvnms', 'load',
+                  'util', 'heating_load', 'cooling_load', 'rc', 'flex_tech_ac', 'flex_tech_hp', 'hot_water_tank',
+                  'flex_tech_erwh', 'flex_tech_hpwh'] + dfm.available_techs:
             if dfm_dict.get(k) is not None:
                 del dfm_dict[k]
 

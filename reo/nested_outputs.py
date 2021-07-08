@@ -1031,8 +1031,100 @@ nested_output_definitions = {
                   "description": "Year one hourly time series of hot TES state of charge",
                   "units": "%"
                 }
+              },
+              "RC": {
+                "temperatures_degree_C": {
+                  "type": list_of_float,
+                  "description": "Hourly time series of indoor temperature",
+                  "units": "Celsius"
+                },
+                "comfort_penalty_degC": {
+                  "type": list_of_float,
+                  "description": "HVAC comfort penalty",
+                  "units": "degrees"
+                }
+              },
+              "FlexTechAC": {
+                "size_kw": {
+                  "type": float,
+                  "description": "AC size",
+                  "units": "kW"
+                },
+                "year_one_power_production_series_kw": {
+                  "type": list_of_float,
+                  "description": "Year one AC power production time series",
+                  "units": "kW"
+                },
+                "year_one_power_consumption_series_kw": {
+                  "type": list_of_float,
+                  "description": "Year one AC power consumption time series",
+                  "units": "kW"
+                }
+              },
+              "FlexTechHP": {
+                "size_kw": {
+                  "type": float,
+                  "description": "HP size",
+                  "units": "kW"
+                },
+                "year_one_power_production_series_kw": {
+                  "type": list_of_float,
+                  "description": "Year one HP power production time series",
+                  "units": "kW"
+                },
+                "year_one_power_consumption_series_kw": {
+                  "type": list_of_float,
+                  "description": "Year one HP power consumption time series",
+                  "units": "kW"
+                }
+              },
+              "HotWaterTank": {
+                "year_one_temperature_series_degC": {
+                  "type": list_of_float,
+                  "description": "Hot water tank temperature series",
+                  "units": "Celcius"
+                },
+                "comfort_penalty_degC": {
+                  "type": list_of_float,
+                  "description": "WH comfort penalty",
+                  "units": "degrees"
+                }
+              },
+              "FlexTechERWH": {
+                "year_one_power_production_series_kw": {
+                  "type": list_of_float,
+                  "description": "Year one ERWH power production time series",
+                  "units": "kW"
+                },
+                "year_one_power_consumption_series_kw": {
+                  "type": list_of_float,
+                  "description": "Year one ERWH power consumption time series",
+                  "units": "kW"
+                },
+                "fraction_on": {
+                  "type": list_of_float,
+                  "description": "Fraction of each hour the ERWH is on for",
+                  "units": "-"
+                }
+              },
+              "FlexTechHPWH": {
+                "year_one_power_production_series_kw": {
+                  "type": list_of_float,
+                  "description": "Year one HPWH power production time series",
+                  "units": "kW"
+                },
+                "year_one_power_consumption_series_kw": {
+                  "type": list_of_float,
+                  "description": "Year one HPWH power consumption time series",
+                  "units": "kW"
+                },
+                "fraction_on": {
+                  "type": list_of_float,
+                  "description": "Fraction of each hour the ERWH is on for",
+                  "units": "-"
+                }
+              }
             }
-          }
         }
       },
 
