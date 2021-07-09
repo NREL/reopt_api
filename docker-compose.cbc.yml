@@ -1,0 +1,74 @@
+version: "2.1"
+
+services:
+
+  redis-cbc:
+    image: redis
+    command: redis-server
+    expose:
+      - 6379
+
+  db-cbc:
+    image: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=reopt
+      - POSTGRES_PASSWORD=reopt
+      - POSTGRES_DB=reopt
+    expose:
+      - 5432
+
+  celery-cbc:
+    build:
+      context: .
+    image: base-api-image-cbc
+    command:  >
+      "celery -A reopt_api worker -l info"
+    environment:
+      - APP_ENV=local
+      - SQL_HOST=db-cbc
+      - SQL_PORT=5432
+      - REDIS_HOST=redis-cbc
+      - JULIA_HOST=julia-cbc
+    volumes:
+      - .:/opt/reopt
+    depends_on:
+      - db-cbc
+      - redis-cbc
+      - julia-cbc
+
+  django-cbc:
+    image: base-api-image-cbc
+    command:  >
+      "python manage.py migrate
+      && /opt/reopt/bin/wait-for-it.bash -t 0 julia-cbc:8081 -- python manage.py runserver 0.0.0.0:8000"
+    environment:
+      - APP_ENV=local
+      - SQL_HOST=db-cbc
+      - SQL_PORT=5432
+      - REDIS_HOST=redis-cbc
+      - JULIA_HOST=julia-cbc
+    depends_on:
+      - db-cbc
+      - redis-cbc
+      - julia-cbc
+      - celery-cbc
+    ports:
+      - 8000:8000
+    volumes:
+      - .:/opt/reopt
+  
+  julia-cbc:
+    container_name: julia_api_cbc
+    build:
+      context: julia_src/
+      dockerfile: Dockerfile.cbc
+    command: julia --project=/opt/julia_src/cbc /opt/julia_src/cbc/http.jl
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./julia_src/cbc:/opt/julia_src/cbc
+
+volumes:
+  pgdata:

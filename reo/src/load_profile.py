@@ -40,6 +40,18 @@ import geopandas as gpd
 from shapely import geometry as g
 from reo.exceptions import LoadProfileError
 log = logging.getLogger(__name__)
+import json
+
+library_path_base = os.path.join('input_files', 'LoadProfiles')
+load_type_file_map = {"Electric": "Load8760_norm_",
+                        "SpaceHeating": "SpaceHeating8760_norm_",
+                        "DHW": "DHW8760_norm_",
+                        "Cooling": "Cooling8760_norm_"}
+
+space_heating_annual_loads = json.load(open(os.path.join(library_path_base, "space_heating_annual_mmbtu.json"), "rb"))
+dhw_annual_loads = json.load(open(os.path.join(library_path_base, "dhw_annual_mmbtu.json"), "rb"))
+total_heating_annual_loads = {city: {building: space_heating_annual_loads[city][building] + dhw_annual_loads[city][building] for building in space_heating_annual_loads[city].keys()} for city in space_heating_annual_loads.keys()}
+space_heating_fraction_flat_load = {city: space_heating_annual_loads[city]["flatload"] / total_heating_annual_loads[city]["flatload"] for city in space_heating_annual_loads.keys()}
 
 default_annual_electric_loads = {
       "Albuquerque": {
@@ -394,7 +406,6 @@ def bau_outage_check(critical_loads_kw, existing_pv_kw_list, gen_existing_kw, ge
 
 class BuiltInProfile(object):
 
-    library_path = os.path.join('input_files', 'LoadProfiles')
     Default_city = namedtuple("Default_city", "name lat lng tmyid zoneid")
     default_cities = [
         Default_city('Miami', 25.761680, -80.191790, 722020, '1A'),
@@ -438,7 +449,7 @@ class BuiltInProfile(object):
                          'FlatLoad_8_5'
                          ]
 
-    def __init__(self, annual_loads=default_annual_electric_loads, builtin_profile_prefix="Load8760_norm_",
+    def __init__(self, annual_loads=default_annual_electric_loads, load_type='Electric',
                  latitude=None, longitude=None, doe_reference_name='', annual_energy=None,
                  monthly_totals_energy=None, **kwargs):
         """
@@ -450,9 +461,11 @@ class BuiltInProfile(object):
         :param year: year of load profile, needed for monthly scaling
         :param kwargs:
         """
+        self.load_type = load_type
+        self.library_path = os.path.join(library_path_base, self.load_type)
+        self.builtin_profile_prefix = load_type_file_map[self.load_type]
         self.flatload_alternate_options = ['FlatLoad_24_5','FlatLoad_16_7','FlatLoad_16_5','FlatLoad_8_7','FlatLoad_8_5']
         self.annual_loads = annual_loads  # a dictionary of cities and default annual loads or a constant value for any city
-        self.builtin_profile_prefix = builtin_profile_prefix
         self.latitude = float(latitude) if latitude is not None else None
         self.longitude = float(longitude) if longitude is not None else None
         self.monthly_energy = monthly_totals_energy
@@ -462,15 +475,16 @@ class BuiltInProfile(object):
         self.annual_energy = annual_energy if annual_energy is not None else (
             sum(monthly_totals_energy) if monthly_totals_energy else self.default_annual_energy)
         self.annual_kwh = round(self.annual_energy,0)
+        self.user_entered_space_heating_fraction = kwargs.get("space_heating_fraction")
         
 
     @property
     def built_in_profile(self):
-        if self.doe_reference_name in ['FlatLoad'] + self.flatload_alternate_options:
-            return [ld * self.annual_energy for ld in self.custom_normalized_flatload]
-
         if self.monthly_energy in [None, []]:
-            return [ld * self.annual_energy for ld in self.normalized_profile]
+            if self.doe_reference_name in ['FlatLoad'] + self.flatload_alternate_options:
+                return [ld * self.annual_energy * self.heating_fraction[0] for ld in self.custom_normalized_flatload]            
+            else:
+                return [ld * self.annual_energy for ld in self.normalized_profile]
         return self.monthly_scaled_profile
 
     @property
@@ -557,8 +571,14 @@ class BuiltInProfile(object):
         month_total = 0
         month_scale_factor = []
 
-        for load in self.normalized_profile:
+        if self.doe_reference_name in ['FlatLoad'] + self.flatload_alternate_options:
+            normalized_profile = self.custom_normalized_flatload
+        else:
+            normalized_profile = self.normalized_profile
+        
+        for load in normalized_profile:
             month = datetime_current.month
+            # Monthly total based on annual_energy (sum of monthly_energy) and the normalized profile, later used to scale actual monthly energy
             month_total += self.annual_energy * load
 
             # add an hour
@@ -568,12 +588,12 @@ class BuiltInProfile(object):
                 if month_total == 0:
                     month_scale_factor.append(0)
                 else:
-                    month_scale_factor.append(float(self.monthly_energy[month - 1] / month_total))
+                    month_scale_factor.append(float(self.monthly_energy[month - 1] / month_total * self.heating_fraction[month - 1]))
                 month_total = 0
 
         datetime_current = datetime(self.year, 1, 1, 0)
 
-        for load in self.normalized_profile:
+        for load in normalized_profile:
             month = datetime_current.month
 
             load_profile.append(self.annual_energy * load * month_scale_factor[month - 1])
@@ -585,7 +605,7 @@ class BuiltInProfile(object):
 
     @property
     def normalized_profile(self):
-        profile_path = os.path.join(BuiltInProfile.library_path,
+        profile_path = os.path.join(self.library_path,
                                     self.builtin_profile_prefix + self.city + "_" + self.building_type + ".dat")
         normalized_profile = list()
         f = open(profile_path, 'r')
@@ -594,6 +614,27 @@ class BuiltInProfile(object):
 
         return normalized_profile
 
+    @property
+    def heating_fraction(self):
+        if self.load_type == "SpaceHeating":
+            if self.user_entered_space_heating_fraction in [None, []]:
+                heating_fraction = [space_heating_fraction_flat_load[self.city] for _ in range(12)]
+            elif len(self.user_entered_space_heating_fraction) == 1:
+                heating_fraction = [self.user_entered_space_heating_fraction[0] for _ in range(12)]
+            else:
+                heating_fraction = self.user_entered_space_heating_fraction
+        elif self.load_type == "DHW":            
+            if self.user_entered_space_heating_fraction in [None, []]:
+                heating_fraction = [1.0 - space_heating_fraction_flat_load[self.city] for _ in range(12)]
+            elif len(self.user_entered_space_heating_fraction) == 1:
+                heating_fraction = [1.0 - self.user_entered_space_heating_fraction[0] for _ in range(12)]
+            else:
+                heating_fraction = [1.0 - self.user_entered_space_heating_fraction[i] for i in range(12)]
+        else:
+            # Electric and Cooling loads use this fraction of 1.0 to make irrelevant
+            heating_fraction = [1.0] * 12
+        
+        return heating_fraction
 
 class LoadProfile(BuiltInProfile):
     """
@@ -777,3 +818,29 @@ class LoadProfile(BuiltInProfile):
             native_load = [i + j for i, j in zip(self.unmodified_load_list, existing_pv_kw_list)]
             return native_load, existing_pv_kw_list
         return copy.copy(self.unmodified_load_list), existing_pv_kw_list
+
+def get_climate_zone(latitude, longitude):
+    gdf = gpd.read_file('reo/src/data/climate_cities.shp')
+    gdf = gdf[gdf.geometry.intersects(g.Point(longitude, latitude))]
+    if not gdf.empty:
+        nearest_city = gdf.city.values[0].replace(' ', '')
+    if nearest_city is None:
+        cities_to_search = BuiltInProfile.default_cities
+    else:
+        climate_zone = [c for c in BuiltInProfile.default_cities if c.name==nearest_city][0].zoneid
+        cities_to_search = [c for c in BuiltInProfile.default_cities if c.zoneid==climate_zone]
+    if len(cities_to_search) > 1:
+        # else use old geometric approach, never fails...but isn't necessarily correct
+        min_distance = None
+        for i, c in enumerate(cities_to_search):
+            distance = math.sqrt((latitude - c.lat) ** 2 + (longitude - c.lng) ** 2)
+            if i == 0:
+                min_distance = distance
+                nearest_city = c.name
+            elif distance < min_distance:
+                min_distance = distance
+                nearest_city = c.name
+    
+    climate_zone = [c for c in BuiltInProfile.default_cities if c.name==nearest_city][0].zoneid
+
+    return climate_zone

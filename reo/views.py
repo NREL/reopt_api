@@ -35,7 +35,7 @@ import uuid
 import copy
 import json
 from django.http import JsonResponse
-from reo.src.load_profile import BuiltInProfile, LoadProfile
+from reo.src.load_profile import BuiltInProfile, LoadProfile, get_climate_zone
 from reo.src.load_profile_boiler_fuel import LoadProfileBoilerFuel
 from reo.src.load_profile_chiller_thermal import LoadProfileChillerThermal
 from reo.models import URDBError
@@ -53,6 +53,10 @@ import pandas as pd
 from reo.utilities import generate_year_profile_hourly, TONHOUR_TO_KWHT, get_weekday_weekend_total_hours_by_month
 from reo.validators import ValidateNestedInput
 from datetime import datetime, timedelta
+from reo.src.ghp import ground_k_by_climate_zone
+# import math
+# import geopandas as gpd
+# from shapely import geometry as g
 
 
 # loading the labels of hard problems - doing it here so loading happens once on startup
@@ -233,7 +237,8 @@ def simulated_load(request):
     try:
         valid_keys = ["doe_reference_name","latitude","longitude","load_type","percent_share","annual_kwh",
                         "monthly_totals_kwh","annual_mmbtu","annual_fraction","annual_tonhour","monthly_tonhour",
-                        "monthly_mmbtu","monthly_fraction","max_thermal_factor_on_peak_load","chiller_cop"]
+                        "monthly_mmbtu","monthly_fraction","max_thermal_factor_on_peak_load","chiller_cop",
+                        "addressable_load_fraction", "space_heating_fraction_of_heating_load"]
         for key in request.GET.keys():
             k = key
             if "[" in key:
@@ -325,7 +330,7 @@ def simulated_load(request):
 
         if load_type == "heating":
             for key in request.GET.keys():
-                if ('_kw' in key) or ('_ton' in key) or ('_fraction' in key):
+                if ('_kw' in key) or ('_ton' in key): # or ('_fraction' in key):
                     raise ValueError("Invalid key {} for load_type=heating".format(key))
             
             if doe_reference_name is None:
@@ -352,18 +357,43 @@ def simulated_load(request):
             else:
                 monthly_mmbtu = None
 
-            b = LoadProfileBoilerFuel(dfm=None, latitude=latitude, longitude=longitude, doe_reference_name=doe_reference_name,
-                           annual_mmbtu=annual_mmbtu, monthly_mmbtu=monthly_mmbtu, time_steps_per_hour=1,
-                           percent_share=percent_share_list)
+            kwargs_heating = {}
+            if 'addressable_load_fraction' in request.GET.keys():
+                addressable_load_fraction = [float(request.GET.get('addressable_load_fraction'))]
+            else:
+                addressable_load_fraction = [nested_input_definitions["Scenario"]["Site"]["LoadProfileBoilerFuel"]["addressable_load_fraction"]["default"]]
+            kwargs_heating["addressable_load_fraction"] = addressable_load_fraction
 
-            lp = b.load_list
+            if 'space_heating_fraction_of_heating_load' in request.GET.keys():
+                space_heating_fraction_of_heating_load = [float(request.GET.get('space_heating_fraction_of_heating_load'))]
+                kwargs_heating["space_heating_fraction_of_heating_load"] = space_heating_fraction_of_heating_load            
+
+            b_space = LoadProfileBoilerFuel(load_type="SpaceHeating", dfm=None, latitude=latitude, longitude=longitude, doe_reference_name=doe_reference_name,
+                           annual_mmbtu=annual_mmbtu, monthly_mmbtu=monthly_mmbtu, time_steps_per_hour=1,
+                           percent_share=percent_share_list, **kwargs_heating)
+
+            b_dhw = LoadProfileBoilerFuel(load_type="DHW", dfm=None, latitude=latitude, longitude=longitude, doe_reference_name=doe_reference_name,
+                           annual_mmbtu=annual_mmbtu, monthly_mmbtu=monthly_mmbtu, time_steps_per_hour=1,
+                           percent_share=percent_share_list, **kwargs_heating)            
+
+            lp = [b_space.load_list[i] + b_dhw.load_list[i] for i in range(len(b_space.load_list))]
 
             response = JsonResponse(
                 {'loads_mmbtu': [round(ld, 3) for ld in lp],
-                 'annual_mmbtu': b.annual_mmbtu,
+                 'annual_mmbtu': b_space.annual_mmbtu + b_dhw.annual_mmbtu,
                  'min_mmbtu': round(min(lp), 3),
                  'mean_mmbtu': round(sum(lp) / len(lp), 3),
                  'max_mmbtu': round(max(lp), 3),
+                 'space_loads_mmbtu': [round(ld, 3) for ld in b_space.load_list],
+                 'space_annual_mmbtu': b_space.annual_mmbtu,
+                 'space_min_mmbtu': round(min(b_space.load_list), 3),
+                 'space_mean_mmbtu': round(sum(b_space.load_list) / len(b_space.load_list), 3),
+                 'space_max_mmbtu': round(max(b_space.load_list), 3),
+                 'dhw_loads_mmbtu': [round(ld, 3) for ld in b_dhw.load_list],
+                 'dhw_annual_mmbtu': b_dhw.annual_mmbtu,
+                 'dhw_min_mmbtu': round(min(b_dhw.load_list), 3),
+                 'dhw_mean_mmbtu': round(sum(b_dhw.load_list) / len(b_dhw.load_list), 3),
+                 'dhw_max_mmbtu': round(max(b_dhw.load_list), 3),
                  }
                 )
 
@@ -824,3 +854,39 @@ def schedule_stats(request):
                                                                             tb.format_tb(exc_traceback))
         log.debug(debug_msg)
         return JsonResponse({"Error": "Unexpected error in schedule_stats endpoint. Check log for more."}, status=500)
+
+def ground_conductivity(request):
+    """
+    GET ground thermal conductivity based on the climate zone from the lat/long input
+    param: latitude: latitude of the site location
+    param: longitude: longitude of the site location
+    return: Climate Zone: climate zone of the site location
+    return: Thermal Conductivity [Btu/(hr-ft-degF)]: thermal conductivity of the ground in climate zone
+    """
+    try:
+        latitude = float(request.GET['latitude'])  # need float to convert unicode
+        longitude = float(request.GET['longitude'])
+
+        climate_zone = get_climate_zone(latitude, longitude)
+        k = ground_k_by_climate_zone.loc[climate_zone,"k"]
+
+        response = JsonResponse(
+            {
+                "Climate Zone": climate_zone,
+                "Thermal Conductivity": k
+            }
+        )
+        return response
+
+    except ValueError as e:
+        return JsonResponse({"Error": str(e.args[0])}, status=400)
+
+    except KeyError as e:
+        return JsonResponse({"Error. Missing": str(e.args[0])}, status=400)
+
+    except Exception:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        debug_msg = "exc_type: {}; exc_value: {}; exc_traceback: {}".format(exc_type, exc_value.args[0],
+                                                                            tb.format_tb(exc_traceback))
+        log.debug(debug_msg)
+        return JsonResponse({"Error": "Unexpected error in ground_conductivity endpoint. Check log for more."}, status=500)

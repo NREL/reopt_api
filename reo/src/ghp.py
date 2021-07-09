@@ -1,8 +1,11 @@
 import numpy as np
+import pandas as pd
 import copy
 from reo.utilities import MMBTU_TO_KWH, TONHOUR_TO_KWHT
 from reo.src.incentives import Incentives, IncentivesNoProdBased
 from reo.src.data_manager import big_number
+
+ground_k_by_climate_zone = pd.read_csv("input_files/ground_conductivity.csv", index_col="zone", dtype={"zone":str, "k": float})
 
 class GHPGHXInputs:
     """

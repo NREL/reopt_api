@@ -36,6 +36,8 @@ from ghpghx.models import GHPGHXModel, ModelManager
 log = logging.getLogger(__name__)
 
 
+#TODO Update this to use celery for task queuing /ghpghx jobs (or wait until V2 to parallelize in Julia)
+
 def process_ghpghx_results(data, meta, saveToDB=True):
     """
     Processes the two outputs from reopt.jl bau and with-Tech scenarios

@@ -833,8 +833,8 @@ def process_results(self, dfm_list, data, meta, saveToDB=True):
                         self.nested_outputs["Scenario"]["Site"][name]["ghpghx_chosen_outputs"] = ghpghx_chosen["outputs"]
                         self.nested_outputs["Scenario"]["Site"][name]["ghpghx_chosen_outputs"]["heating_thermal_load_mmbtu_per_hr"] = ghpghx_chosen["inputs"]["heating_thermal_load_mmbtu_per_hr"]
                         self.nested_outputs["Scenario"]["Site"][name]["ghpghx_chosen_outputs"]["cooling_thermal_load_ton"] = ghpghx_chosen["inputs"]["cooling_thermal_load_ton"]
-                    else:
-                        self.nested_outputs["Scenario"]["Site"][name]["ghp_chosen_uuid"] = None
+                        self.nested_outputs["Scenario"]["Site"][name]["size_heat_pump_ton"] = ghpghx_chosen["outputs"]["peak_combined_heatpump_thermal_ton"] * \
+                                                                                                data['inputs']['Scenario']["Site"]["GHP"]["heatpump_capacity_sizing_factor_on_peak_load"]
 
             # outputs that depend on multiple object results:
             future_replacement_cost, present_replacement_cost = self.replacement_costs_future_and_present

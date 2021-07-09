@@ -1,0 +1,8 @@
+[deps]
+AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
+Cbc = "9961bab8-2fa3-5c5a-9d89-47fab24efd76"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"

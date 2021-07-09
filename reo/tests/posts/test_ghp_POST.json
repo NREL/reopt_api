@@ -19,7 +19,8 @@
                 "doe_reference_name": "Hospital"
             } ,
             "LoadProfileBoilerFuel": {
-                "doe_reference_name": "Hospital"
+                "addressable_load_fraction": 0.9,
+                "space_heating_fraction_of_heating_load": 0.7
             } ,
             "Boiler": {
                 "existing_boiler_production_type_steam_or_hw": "hot_water" ,
@@ -35,17 +36,18 @@
             } ,
             "FuelTariff": {
                 "existing_boiler_fuel_type": "natural_gas" ,
-                "boiler_fuel_blended_annual_rates_us_dollars_per_mmbtu": 8.0
+                "boiler_fuel_blended_annual_rates_us_dollars_per_mmbtu": 11.0
             } ,
             "GHP": {
                 "force_ghp": true,
-                "ghpghx_inputs": [{}],
-                "building_sqft": 50000.0
+                "building_sqft": 50000.0,
+                "can_serve_dhw": false
             },
             "PV":{
                 "max_kw": 0.0
             },
             "Storage":{
+                "max_kw": 0.0,
                 "max_kwh": 0.0
             }
         }

@@ -39,6 +39,7 @@ from reo.src.profiler import Profiler
 from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 
+#TODO Update this to use celery for task queuing /ghpghx jobs (or wait until V2 to parallelize in Julia)
 
 class RunJumpModelTask(Task):
     """

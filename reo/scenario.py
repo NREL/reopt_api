@@ -37,7 +37,7 @@ import json
 import time
 from reo.src.data_manager import DataManager
 from reo.src.elec_tariff import ElecTariff
-from reo.src.load_profile import LoadProfile
+from reo.src.load_profile import LoadProfile, get_climate_zone
 from reo.src.fuel_tariff import FuelTariff
 from reo.src.load_profile_boiler_fuel import LoadProfileBoilerFuel
 from reo.src.load_profile_chiller_thermal import LoadProfileChillerThermal
@@ -224,7 +224,18 @@ def setup_scenario(self, run_uuid, data, raw_post):
         lp.load_list = [0 if ((x > negative_load_tolerance) and (x < 0)) else x for x in lp.load_list]
 
         # Load Profile Boiler Fuel
-        lpbf = LoadProfileBoilerFuel(dfm=dfm,
+        lpbf_space = LoadProfileBoilerFuel(load_type="SpaceHeating",
+            dfm=dfm,
+            time_steps_per_hour=inputs_dict['time_steps_per_hour'],
+            latitude=inputs_dict['Site']['latitude'],
+            longitude=inputs_dict['Site']['longitude'],
+            nearest_city=lp.nearest_city,
+            year=lp.year,
+            **inputs_dict['Site']['LoadProfileBoilerFuel']
+            )
+        
+        lpbf_dhw = LoadProfileBoilerFuel(load_type="DHW",
+            dfm=dfm,
             time_steps_per_hour=inputs_dict['time_steps_per_hour'],
             latitude=inputs_dict['Site']['latitude'],
             longitude=inputs_dict['Site']['longitude'],
@@ -234,17 +245,20 @@ def setup_scenario(self, run_uuid, data, raw_post):
             )
 
         # Boiler which supplies the bau boiler fuel load, if there is a boiler fuel load
-        if lpbf.annual_mmbtu > 0.0:
-            boiler = Boiler(dfm=dfm, boiler_fuel_series_bau=lpbf.load_list, **inputs_dict['Site']['Boiler'])
+        if (lpbf_space.annual_mmbtu + lpbf_dhw.annual_mmbtu) > 0.0:
+            lpbf_total = [lpbf_space.load_list[i] + lpbf_dhw.load_list[i] for i in range(len(lpbf_space.load_list))]
+            boiler = Boiler(dfm=dfm, boiler_fuel_series_bau=lpbf_total, **inputs_dict['Site']['Boiler'])
         else:
             boiler = None
 
         # Load Profile Chiller Electric        
-        lpct = LoadProfileChillerThermal(dfm=dfm, total_electric_load_list=lp.unmodified_load_list, 
+        lpct = LoadProfileChillerThermal(load_type="Cooling",
+                                            dfm=dfm,
+                                            total_electric_load_list=lp.unmodified_load_list, 
                                             time_steps_per_hour=inputs_dict['time_steps_per_hour'],
                                             latitude=inputs_dict['Site']['latitude'], 
                                             longitude=inputs_dict['Site']['longitude'], 
-                                            nearest_city=lp.nearest_city or lpbf.nearest_city, 
+                                            nearest_city=lp.nearest_city or lpbf_space.nearest_city, 
                                             year=lp.year, max_thermal_factor_on_peak_load=
                                             inputs_dict['Site']['ElectricChiller']['max_thermal_factor_on_peak_load'],
                                             **inputs_dict['Site']['LoadProfileChillerThermal'])
@@ -347,13 +361,23 @@ def setup_scenario(self, run_uuid, data, raw_post):
                 ghpghx_post = inputs_dict["Site"]["GHP"]["ghpghx_inputs"][i]
                 ghpghx_post["latitude"] = inputs_dict["Site"]["latitude"]
                 ghpghx_post["longitude"] = inputs_dict["Site"]["longitude"]
-                ghpghx_post["heating_fuel_load_mmbtu_per_hr"] = dfm.heating_load.load_list #lpbf.load_list
+                # Only SpaceHeating portion of Heating Load gets served by GHP, unless allowed by can_serve_dhw
+                if not inputs_dict["Site"]["GHP"].get("can_serve_dhw"):
+                    ghpghx_post["heating_fuel_load_mmbtu_per_hr"] = lpbf_space.load_list
+                else:
+                    ghpghx_post["heating_fuel_load_mmbtu_per_hr"] = [lpbf_space.load_list[i] + lpbf_dhw.load_list[i] for i in range(len(lpbf_space.load_list))]
                 if dfm.boiler is not None:
                     ghpghx_post["existing_boiler_efficiency"] = dfm.boiler.boiler_efficiency #boiler.boiler_efficiency
                 else:
                     ghpghx_post["existing_boiler_efficiency"] = 0.8
                 ghpghx_post["cooling_thermal_load_ton"] = [kwt / TONHOUR_TO_KWHT for kwt in dfm.cooling_load.load_list] #lpct.load_list
                 client = TestApiClient()
+                # Update ground thermal conductivity based on climate zone if not user-input
+                if not ghpghx_post.get("ground_thermal_conductivity_btu_per_hr_ft_f"):
+                    k_by_zone = ghp.ground_k_by_climate_zone
+                    climate_zone = get_climate_zone(ghpghx_post["latitude"], ghpghx_post["longitude"])
+                    ghpghx_post["ground_thermal_conductivity_btu_per_hr_ft_f"] = k_by_zone.loc[climate_zone,"k"]
+                # Call /ghpghx endpoint to size GHP and GHX
                 ghpghx_post_resp = client.post('/v1/ghpghx/', data=ghpghx_post)
                 ghpghx_post_resp_dict = json.loads(ghpghx_post_resp.content)
                 ghp_uuid = ghpghx_post_resp_dict.get('ghp_uuid')
@@ -361,6 +385,7 @@ def setup_scenario(self, run_uuid, data, raw_post):
                 ghpghx_results_resp = client.get(ghpghx_results_url)  # same as doing ghpMakeResponse(ghp_uuid)
                 ghpghx_results_resp_dict = json.loads(ghpghx_results_resp.content)
                 ghpghx_response_list.append(ghpghx_results_resp_dict)
+                #json.dump(ghpghx_response_list, open("ghpghx_response.json", "w"))
                 ghp_option_list.append(ghp.GHPGHX(dfm=dfm,
                                                     response=ghpghx_response_list[i],
                                                     **inputs_dict["Site"]["GHP"]))
@@ -405,7 +430,8 @@ def setup_scenario(self, run_uuid, data, raw_post):
         # delete python objects, which are not serializable
 
         for k in ['storage', 'hot_tes', 'cold_tes', 'site', 'elec_tariff', 'fuel_tariff', 'pvs', 'pvnms',
-                'load', 'util', 'heating_load', 'cooling_load', 'newboiler', 'steamturbine', 'ghp_option_list'] + dfm.available_techs:
+                'load', 'util', 'heating_load', 'cooling_load', 'newboiler', 'steamturbine', 'ghp_option_list',
+                'heating_load_space_heating', 'heating_load_dhw'] + dfm.available_techs:
             if dfm_dict.get(k) is not None:
                 del dfm_dict[k]
 

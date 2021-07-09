@@ -412,6 +412,19 @@ nested_input_definitions = {
           "max": 100.0,
          "description": "Percentage share of the types of building for creating hybrid simulated building and campus profiles."
         },
+        "addressable_load_fraction": {
+         "type": ["float", "list_of_float"],
+          "min": 0.0,
+          "max": 1.0,
+          "default": 1.0,
+         "description": "Fraction of the boiler fuel load be served by heating technologies."
+        },
+        "space_heating_fraction_of_heating_load": {
+         "type": ["float", "list_of_float"],
+          "min": 0.0,
+          "max": 1.0,
+         "description": "Fraction of the total heating load (domestic hot water (DHW) plus space heating) for space heating."
+        },
       },
 
       "LoadProfileChillerThermal": {
@@ -2061,11 +2074,15 @@ nested_input_definitions = {
         "ghpghx_inputs": {
           "type": "list_of_dict",
           "description": "GHP-GHX inputs/POST to /ghpghx endpoint"
-        },        
+        },
         "ghpghx_response": {
           "type": "list_of_dict",
           "description": "GHP-GHX response from /ghpghx endpoint, includes ghp_uuid, inputs/POST to /ghpghx, and outputs/results"
         },
+        "can_serve_dhw": {
+          "type": "bool", "default": False,
+          "description": "If GHP can serve the domestic hot water (DHW) portion of the heating load"
+        },              
         "macrs_option_years": {
           "type": "int",
           "restrict_to": macrs_schedules,

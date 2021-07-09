@@ -56,29 +56,32 @@ class GHPTest(ResourceTestCaseMixin, TestCase):
 
     def test_ghp(self):
         """
-        GHP Testing
+
+        This tests multiple unique aspects of GHP:
+        1. The inputs validation of the /ghpghx endpoint input ghpghx_inputs
+        2. The calling of the /ghpghx endpoint from within the scenario.py celery task
+        3. The response created from the /ghpghx endpoint which is an input to reo /job endpoint
+        4. GHP serving only the space heating portion of the heating load (LoadProfileBoilerFuel) input, 
+            unless it is allowed to serve DHW
+        5. Input of a custom COP map for GHP
+
         """
 
-        # Call to GHPGHX app to run GHPGHX model and return the "ghpghx_response" as input to REopt
-        #   this mimicks the process the webtool (and API users) would call GHPGHX then REopt
         nested_data = json.load(open(self.test_reopt_post, 'rb'))
-        #ghpghx_post = json.load(open(self.test_ghpghx_post, 'rb'))
+        ghpghx_post = json.load(open(self.test_ghpghx_post, 'rb'))
 
         # Heat pump performance maps
-        # hp_cop_filepath = os.path.join('ghpghx', 'tests', 'posts', "heatpump_cop_map_Tranquility.csv" )
-        # heatpump_copmap_df = pd.read_csv(hp_cop_filepath)
-        # heatpump_copmap_list_of_dict = heatpump_copmap_df.to_dict('records')
-        # ghpghx_post["cop_map_eft_heating_cooling"] = heatpump_copmap_list_of_dict
-        # json.dump(heatpump_copmap_list_of_dict, open("cop_map_eft_heating_cooling.json", "w"))
+        hp_cop_filepath = os.path.join('ghpghx', 'tests', 'posts', "heatpump_cop_map_custom.csv" )
+        heatpump_copmap_df = pd.read_csv(hp_cop_filepath)
+        heatpump_copmap_list_of_dict = heatpump_copmap_df.to_dict('records')
+        ghpghx_post["cop_map_eft_heating_cooling"] = heatpump_copmap_list_of_dict
 
-        #nested_data["Scenario"]["Site"]["GHP"]["ghpghx_inputs"] = [ghpghx_post]
-        #nested_data["Scenario"]["Site"]["GHP"]["ghpghx_inputs"] = []
-
-        # Call API, get results in "d" dictionary
-        nested_data["Scenario"]["timeout_seconds"] = 420  # Overwriting
-        nested_data["Scenario"]["optimality_tolerance_techs"] = 0.01  # Overwriting
-        nested_data["Scenario"]["optimality_tolerance_bau"] = 0.001                                                                    
+        nested_data["Scenario"]["Site"]["GHP"]["ghpghx_inputs"] = [ghpghx_post]
         
+        #nested_data["Scenario"]["Site"]["GHP"]["ghpghx_response"] = json.load(open("reo/tests/posts/ghpghx_response.json", "r"))
+        nested_data["Scenario"]["Site"]["LoadProfileBoilerFuel"]["doe_reference_name"] = "FlatLoad_24_5"
+        nested_data["Scenario"]["Site"]["LoadProfileBoilerFuel"]["monthly_mmbtu"] = [500.0] + [1000.0]*10 + [1500.0]
+
         # Call REopt
         resp = self.get_reopt_response(data=nested_data)
         self.assertHttpCreated(resp)
@@ -89,7 +92,14 @@ class GHPTest(ResourceTestCaseMixin, TestCase):
         ghp_uuid = d["outputs"]["Scenario"]["Site"]["GHP"]["ghp_chosen_uuid"]
         print("GHP uuid chosen = ", ghp_uuid)
 
-        #TODO index into the ghp_response with ghp_uuid to get GHP results
-        # Could add actual index to outputs to index on list_of_dict instead, but that would be redundant
-        # could instead get ghp_uuid after getting index of list_of_dict, but maybe we could instead do a 
-        # ModelManager call in process_results to assign the chosen ghp_response
+        heating_served_mmbtu = sum(d["outputs"]["Scenario"]["Site"]["GHP"]["ghpghx_chosen_outputs"]["heating_thermal_load_mmbtu_per_hr"])
+        expected_heating_served_mmbtu = 12000 * 0.8 * 0.9 * 0.7  # (fuel_mmbtu * boiler_effic * addressable_load * space_heat_frac)
+
+        self.assertAlmostEqual(heating_served_mmbtu, expected_heating_served_mmbtu, places=3)
+
+        heating_cop_avg = d["inputs"]["Scenario"]["Site"]["GHP"]["ghpghx_response"]["outputs"]["heating_cop_avg"]
+        cooling_cop_avg = d["inputs"]["Scenario"]["Site"]["GHP"]["ghpghx_response"]["outputs"]["cooling_cop_avg"]
+
+        # Average COP which includes pump power should be lower than Heat Pump only COP specified by the map
+        self.assertLess(heating_cop_avg, 4.0)
+        self.assertLess(cooling_cop_avg, 8.0)

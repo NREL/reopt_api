@@ -44,5 +44,6 @@ urlpatterns = [
     re_path(r'^loadprofile_chillerthermal_chiller_cop/?$', views.loadprofile_chillerthermal_chiller_cop),
     re_path(r'^absorption_chiller_defaults/?$', views.absorption_chiller_defaults),
     re_path(r'^schedule_stats/?$', views.schedule_stats),
+    re_path(r'^ground_conductivity/?$', views.ground_conductivity),
     re_path(r'^job/(?P<run_uuid>[0-9a-f-]+)/remove/?$', views.remove),
 ]+ static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

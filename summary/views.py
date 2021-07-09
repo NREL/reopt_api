@@ -31,7 +31,7 @@ import sys
 from django.http import JsonResponse
 from reo.models import ScenarioModel, SiteModel, LoadProfileModel, PVModel, StorageModel, \
     WindModel, GeneratorModel, FinancialModel, ElectricTariffModel, \
-    MessageModel, AbsorptionChillerModel, ColdTESModel, HotTESModel, CHPModel
+    MessageModel, AbsorptionChillerModel, ColdTESModel, HotTESModel, CHPModel, GHPModel
 from reo.exceptions import UnexpectedError
 from reo.models import ModelManager
 from resilience_stats.models import ResilienceModel
@@ -178,6 +178,7 @@ def get_user_summary_for_scenarios(scenarios, user_uuid, total_chunks=None, chun
     hottess = HotTESModel.objects.filter(run_uuid__in=scenario_run_uuids).values('run_uuid','max_gal','size_gal')
     coldtess = ColdTESModel.objects.filter(run_uuid__in=scenario_run_uuids).values('run_uuid','max_gal','size_gal')
     absorpchls = AbsorptionChillerModel.objects.filter(run_uuid__in=scenario_run_uuids).values('run_uuid','max_ton','size_ton')
+    ghps = GHPModel.objects.filter(run_uuid__in=scenario_run_uuids).values('run_uuid','building_sqft','size_heat_pump_ton', 'ghpghx_chosen_outputs')
 
     def get_scenario_data(data, run_uuid):
         if type(data)==dict:
@@ -216,6 +217,8 @@ def get_user_summary_for_scenarios(scenarios, user_uuid, total_chunks=None, chun
             'hottes_gal': 'not evaluated',
             'coldtes_gal': 'not evaluated',
             'absorpchl_ton': 'not evaluated',
+            'ghp_ton': 'not evaluated',
+            'ghp_n_bores': 'not evaluated'
         })
         results['status'] = scenario.status
         results['run_uuid'] = str(scenario.run_uuid)
@@ -245,6 +248,7 @@ def get_user_summary_for_scenarios(scenarios, user_uuid, total_chunks=None, chun
             hottes = get_scenario_data(hottess, scenario.run_uuid)[0]
             coldtes = get_scenario_data(coldtess, scenario.run_uuid)[0]
             absorpchl = get_scenario_data(absorpchls, scenario.run_uuid)[0]
+            ghp = get_scenario_data(ghps, scenario.run_uuid)[0]
 
             if site:
 
@@ -357,6 +361,13 @@ def get_user_summary_for_scenarios(scenarios, user_uuid, total_chunks=None, chun
                 if absorpchl is not None:
                     if (absorpchl.get('max_ton') or -1) > 0:
                         results['absorpchl_ton'] = absorpchl.get('size_ton')
+
+                if ghp is not None:
+                    if (ghp.get("building_sqft") or -1) > 0:
+                        if ghp.get("ghpghx_chosen_outputs"):
+                            results['ghp_ton'] = ghp.get('size_heat_pump_ton')
+                            results['ghp_bores'] = ghp["ghpghx_chosen_outputs"]["number_of_boreholes"]
+
         except:
             json_response['scenarios'].append(results)
             continue

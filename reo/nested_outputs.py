@@ -1166,7 +1166,12 @@ nested_output_definitions = {
                     "type": "dict",
                     "description": "Output fields from the ghpghx_response",
                     "units": "none"
-                }
+                },
+                "size_heat_pump_ton": {
+                  "type": float,
+                  "description": "Size of the aggregated heat pump based on coincident peak heating plus cooling, including a sizing factor",
+                  "units": "ton"
+                },
               }
           	}
         	}

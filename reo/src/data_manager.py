@@ -71,6 +71,8 @@ class DataManager:
         self.elec_tariff = None
         self.fuel_tariff = None
         self.load = None
+        self.heating_load_space_heating = None
+        self.heating_load_dhw = None
         self.heating_load = None
         self.cooling_load = None
         self.reopt_inputs = None
@@ -112,10 +114,11 @@ class DataManager:
         self.LoadProfile["annual_kwh"] = load.annual_kwh
         self.load = load
 
-    def add_load_boiler_fuel(self, load):
-        self.LoadProfile["year_one_boiler_fuel_load_series_mmbtu_per_hr"] = load.load_list
-        self.LoadProfile["annual_heating_mmbtu"] = load.annual_mmbtu
-        self.heating_load = load
+    def add_load_boiler_fuel_space_heating(self, load):
+        self.heating_load_space_heating = load
+
+    def add_load_boiler_fuel_dhw(self, load):
+        self.heating_load_dhw = load
 
     def add_load_chiller_thermal(self, load):
         self.LoadProfile["year_one_chiller_electric_load_series_kw"] = list(np.array(load.load_list) / load.chiller_cop)
@@ -1288,8 +1291,15 @@ class DataManager:
                                                 self.elec_tariff.net_metering_limit_kw)
 
         # Populate heating (convert to kw/kwh) and cooling loads with zeros if not included in model.
+        # Combine heating load for space heating and DHW
+        if self.heating_load_space_heating != None:
+            self.heating_load = [self.heating_load_space_heating.load_list[i] + 
+                                    self.heating_load_dhw.load_list[i] for i in range(len(self.heating_load_space_heating.load_list))]
+            self.LoadProfile["year_one_boiler_fuel_load_series_mmbtu_per_hr"] = self.heating_load
+            self.LoadProfile["annual_heating_mmbtu"] = self.heating_load_space_heating.annual_mmbtu + self.heating_load_dhw.annual_mmbtu
+        
         if self.heating_load != None:
-            heating_load = [self.heating_load.load_list[i] * MMBTU_TO_KWH for i in range(len(self.heating_load.load_list))]
+            heating_load = [self.heating_load[i] * MMBTU_TO_KWH for i in range(len(self.heating_load))]
         else:
             heating_load = [0.0 for _ in self.load.load_list]
         if self.LoadProfile["annual_cooling_kwh"] > 0.0:

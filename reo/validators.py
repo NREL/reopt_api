@@ -1491,7 +1491,7 @@ class ValidateNestedInput:
                 # If an empty dictionary comes in - assume no load by default
                 no_values_given = True
                 for k, v in real_values.items():
-                    if v not in [None, []] and v != template_values[k].get('default'):
+                    if v not in [None, []] and v not in [template_values[k].get('default'), [template_values[k].get('default')]]:
                         no_values_given = False
                 if no_values_given:
                     self.update_attribute_value(object_name_path, number, 'loads_mmbtu_per_hour', list(np.concatenate(

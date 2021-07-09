@@ -252,6 +252,8 @@ class LoadProfileBoilerFuelModel(models.Model):
     doe_reference_name = ArrayField(
             models.TextField(null=True, blank=True), default=list, null=True)
     percent_share = ArrayField(models.FloatField(null=True, blank=True), default=list, null=True)
+    addressable_load_fraction = ArrayField(models.FloatField(null=True, blank=True), default=list, null=True)
+    space_heating_fraction_of_heating_load = ArrayField(models.FloatField(null=True, blank=True), default=list, null=True)
 
     # Outputs
     annual_calculated_boiler_fuel_load_mmbtu_bau = models.FloatField(null=True, blank=True)
@@ -998,6 +1000,7 @@ class GHPModel(models.Model):
     building_sqft = models.FloatField(null=True, blank=True)
     ghpghx_inputs = ArrayField(PickledObjectField(null=True, editable=True), null=True, default=list)
     ghpghx_response = ArrayField(PickledObjectField(null=True, editable=True), null=True, default=list)
+    can_serve_dhw = models.BooleanField(null=True, blank=True)
     macrs_option_years = models.IntegerField(null=True, blank=True)
     macrs_bonus_pct = models.FloatField(null=True, blank=True)
     macrs_itc_reduction = models.FloatField(null=True, blank=True)
@@ -1016,6 +1019,7 @@ class GHPModel(models.Model):
     # TODO may make this a UUIDField once it's actually assigned one from the GHPGHX endpoint
     ghp_chosen_uuid = models.TextField(null=True, blank=True)
     ghpghx_chosen_outputs = PickledObjectField(null=True, editable=True)
+    size_heat_pump_ton = models.FloatField(null=True, blank=True)  # This includes a factor on the peak coincident heating+cooling load
 
     @classmethod
     def create(cls, **kwargs):

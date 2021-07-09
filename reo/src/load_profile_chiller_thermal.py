@@ -1,4 +1,4 @@
-from reo.src.load_profile import BuiltInProfile
+from reo.src.load_profile import library_path_base, BuiltInProfile
 import os
 import json
 import pandas as pd
@@ -12,7 +12,7 @@ class LoadProfileChillerThermal(BuiltInProfile):
     Chiller Load Profiles based on CRB defined load shapes or user-defined input
     """
     
-    with open(os.path.join(BuiltInProfile.library_path, 'reference_cooling_kwh.json'), 'r') as f:
+    with open(os.path.join(library_path_base, 'reference_cooling_kwh.json'), 'r') as f:
         annual_loads = json.loads(f.read())
 
     builtin_profile_prefix = "Cooling8760_norm_"
@@ -37,7 +37,7 @@ class LoadProfileChillerThermal(BuiltInProfile):
         else:
             return LoadProfileChillerThermal.electric_chiller_cop_defaults["greater_than_100_tons"]
 
-    def __init__(self, dfm=None, total_electric_load_list=[], latitude=None, longitude=None, nearest_city=None,
+    def __init__(self, load_type="Cooling", dfm=None, total_electric_load_list=[], latitude=None, longitude=None, nearest_city=None,
                         time_steps_per_hour=None, year=None, chiller_cop=None, max_thermal_factor_on_peak_load=None, **kwargs):
         """
         :param dfm: (object) data_manager to which this load object will be added
@@ -49,8 +49,11 @@ class LoadProfileChillerThermal(BuiltInProfile):
         :param year: (int) electric LoadProfile year
         :param chiller_cop: (float or int) Coefficient of Performance for Chiller
         :param max_thermal_factor_on_peak_load: (float or int) maximum thermal factor on peak load for the Chiller
-        :param kwargs: (dict) Chiller specific inputs as defined in reo/nested_inputs
+        :param kwargs: (dict) LoadProfileChillerThermal specific inputs as defined in reo/nested_inputs
         """
+        
+        self.load_type = load_type
+        
         self.nearest_city = nearest_city
         self.latitude = latitude
         self.longitude = longitude
@@ -79,7 +82,7 @@ class LoadProfileChillerThermal(BuiltInProfile):
                     kwargs['annual_energy'] = kwargs["annual_tonhour"]
                 
                 kwargs['annual_loads'] = self.annual_loads
-                kwargs['builtin_profile_prefix'] = self.builtin_profile_prefix
+                kwargs['load_type'] = self.load_type
                 kwargs['latitude'] = latitude
                 kwargs['longitude'] = longitude
                 kwargs['doe_reference_name'] = doe_reference_name[i]

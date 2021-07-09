@@ -1,2 +1,9 @@
 {
+    "borehole_depth_ft": 400.0,
+    "simulation_years": 20,
+    "solver_eft_tolerance_f": 2.0,
+    "ghx_model": "TESS",
+    "tess_ghx_minimum_timesteps_per_hour": 1,
+    "max_sizing_iterations": 10,
+    "init_sizing_factor_ft_per_peak_ton": 300.0    
 }

@@ -17,7 +17,7 @@ function job(req::HTTP.Request)
     	results = reopt(m, d)
 	catch e
 		@error "Something went wrong in the Julia code!" exception=(e, catch_backtrace())
-		error_response["error"] = e.msg
+		error_response["error"] = sprint(showerror, e)
 	end
 	finalize(backend(m))
 	GC.gc()
