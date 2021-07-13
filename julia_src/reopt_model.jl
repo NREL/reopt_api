@@ -124,7 +124,20 @@ function add_cost_expressions(m, p)
 end
 
 
-function add_export_expressions(m, p)  # TODO handle empty export tiers (and export rates, etc.)
+function add_export_expressions(m, p)
+    """
+    There are three Export tiers and their associated export rates (negative values):
+    1. NEM
+    2. Wholesale
+    3. Excess
+
+    Only one of NEM and Wholesale can be exported into due to the NMIL binary constraints.
+    Excess can be exported into in the same time step as NEM or Wholesale.
+
+    Excess is meant to be combined with NEM: NEM export is limited to the total grid purchased energy in a year and some
+    utilities offer a compensation mechanism for export beyond the site load.
+    The Excess tier does not have really have a purpose with the Wholesale tier. (It used to be effectively curtailment).
+    """
 
 	m[:TotalExportBenefit] = 0
 	m[:CurtailedElecWIND] = 0
@@ -662,23 +675,18 @@ function add_prod_grid_constraints(m, p)
 		p.ProductionFactor[t,ts] * p.LevelizationFactor[t] * m[:dvRatedProduction][t,ts] >=
 	  	sum(m[:dvProductionToGrid][t,u,ts] for u in p.ExportTiersByTech[t]) + m[:dvProductionToCurtail][t,ts]
 	)
-	
-	##Constraint (8f): Total sales to grid no greater than annual allocation, excluding storage tiers
-	@constraint(m,  AnnualGridSalesLimitCon,
-	 p.TimeStepScaling * ( 
-	  	sum( m[:dvProductionToGrid][t,u,ts] for u in p.ExportTiers, t in p.TechsByExportTier[u], ts in p.TimeStepsWithGrid
-	  		if !(u in p.ExportTiersBeyondSiteLoad))) <= p.AnnualElecLoadkWh
-	)
 
 	# Cannot export power while importing from Grid
 	@constraint(m, NoGridPurchasesBinary[ts in p.TimeStep],
-		sum(m[:dvGridPurchase][u,ts] for u in p.PricingTier) + m[:dvGridToStorage][ts] -
-		(1 - m[:binNoGridPurchases][ts]) * 1.0E9 <= 0
+        m[:binNoGridPurchases][ts] => {
+            sum(m[:dvGridPurchase][u,ts] for u in p.PricingTier) + m[:dvGridToStorage][ts] <= 0
+        }
 	)
 
 	@constraint(m, ExportOnlyAfterSiteLoadMetCon[ts in p.TimeStep],
-		sum(sum(m[:dvProductionToGrid][t,u,ts] for t in p.Tech, u in p.ExportTiers) -
-			m[:binNoGridPurchases][ts] * 1.0E9) <= 0
+		!m[:binNoGridPurchases][ts] => {
+            sum(m[:dvProductionToGrid][t,u,ts] for t in p.Tech, u in p.ExportTiers) <= 0
+        }
 	)
 end
 
@@ -705,8 +713,8 @@ end
 
 function add_nem_constraint(m, p)
 	@constraint(m, GridSalesLimit,
-		p.TimeStepScaling * sum(m[:dvProductionToGrid][t, "NEM", ts] for t in p.TechsByExportTier["NEM"], ts in p.TimeStep)
-		<= p.TimeStepScaling * sum(m[:dvGridPurchase][u,ts] for u in p.PricingTier, ts in p.TimeStep)
+		sum(m[:dvProductionToGrid][t, "NEM", ts] for t in p.TechsByExportTier["NEM"], ts in p.TimeStep)
+		<= sum(m[:dvGridPurchase][u,ts] for u in p.PricingTier, ts in p.TimeStep)
 	)
 end
 
